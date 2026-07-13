@@ -16,7 +16,6 @@ public record CreateLobbyResponse
     public required string RoomCode { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class CreateLobbyEndpoint
 {
     [WolverinePost("/api/v1/lobby")]

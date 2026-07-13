@@ -12,7 +12,6 @@ public record SubmitSeerInspection
     public required Guid TargetPlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class SubmitSeerInspectionEndpoint
 {
     public static ProblemDetails Validate(SubmitSeerInspection command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

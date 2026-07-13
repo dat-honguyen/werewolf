@@ -47,7 +47,6 @@ public record PlayerNotification
             : this.ToWebSocketGroup(RoomGroup(RoomCode));
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class GameEventToNotificationHandlers
 {
     public static SignalRMessage<PlayerNotification> Handle(GameStarted @event) =>

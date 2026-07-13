@@ -12,7 +12,6 @@ public record SetReady
     public required bool IsReady { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class SetReadyEndpoint
 {
     public static ProblemDetails Validate(SetReady command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)

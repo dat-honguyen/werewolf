@@ -20,4 +20,9 @@
     <PackageReference Include="WolverineFx.Marten" />
     <PackageReference Include="WolverineFx.SignalR" />
   </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <!-- Runtime Roslyn compilation for Wolverine's Dynamic codegen mode in local dev.
+         Not referenced in Release, so production ships without the ~100MB Roslyn graph. -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+  </ItemGroup>
 </Project>

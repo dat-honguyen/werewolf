@@ -26,7 +26,6 @@ public record StartGameResponse
 /// combining an existing-stream append with a new-stream start in one handler, so this stays
 /// a manual FetchForWriting + MartenOps.StartStream, unlike the rest of the Lobby/Game handlers.
 /// </summary>
-[MartenStore(typeof(IWerewolfStore))]
 public static class StartGameEndpoint
 {
     // Note: this handler loads the Lobby manually (see class remarks above), so there's no

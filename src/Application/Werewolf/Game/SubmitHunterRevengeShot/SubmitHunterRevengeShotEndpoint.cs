@@ -12,7 +12,6 @@ public record SubmitHunterRevengeShot
     public required Guid TargetPlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class SubmitHunterRevengeShotEndpoint
 {
     public static ProblemDetails Validate(SubmitHunterRevengeShot command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

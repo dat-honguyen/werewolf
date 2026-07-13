@@ -11,7 +11,6 @@ public record UseWitchHealPotion
     public required Guid PlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class UseWitchHealPotionEndpoint
 {
     public static ProblemDetails Validate(UseWitchHealPotion command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken) 

@@ -11,7 +11,6 @@ public record AdvanceToVoting
     public required Guid RequestedBy { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class AdvanceToVotingEndpoint
 {
     public static ProblemDetails Validate(AdvanceToVoting command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

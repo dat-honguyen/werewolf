@@ -11,7 +11,6 @@ public record CloseVoting
     public required Guid RequestedBy { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class CloseVotingEndpoint
 {
     public static ProblemDetails Validate(CloseVoting command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

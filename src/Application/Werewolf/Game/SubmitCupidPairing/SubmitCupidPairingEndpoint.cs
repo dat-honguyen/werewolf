@@ -13,7 +13,6 @@ public record SubmitCupidPairing
     public required Guid SecondPlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class SubmitCupidPairingEndpoint
 {
     public static ProblemDetails Validate(SubmitCupidPairing command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

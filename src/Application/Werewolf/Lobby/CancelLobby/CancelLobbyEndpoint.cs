@@ -11,7 +11,6 @@ public record CancelLobby
     public required Guid RequestedBy { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class CancelLobbyEndpoint
 {
     public static ProblemDetails Validate(CancelLobby command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)

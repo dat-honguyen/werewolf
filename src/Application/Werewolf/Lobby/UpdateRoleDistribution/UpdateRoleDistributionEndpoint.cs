@@ -13,7 +13,6 @@ public record UpdateRoleDistribution
     public required Dictionary<Role, int> Distribution { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class UpdateRoleDistributionEndpoint
 {
     public static ProblemDetails Validate(UpdateRoleDistribution command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)

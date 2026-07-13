@@ -14,7 +14,6 @@ public record SubmitWerewolfVote
     public required Guid TargetPlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class SubmitWerewolfVoteEndpoint
 {
     public static ProblemDetails Validate(SubmitWerewolfVote command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

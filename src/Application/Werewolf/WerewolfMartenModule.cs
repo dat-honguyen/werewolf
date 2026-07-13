@@ -47,11 +47,11 @@ public static class WerewolfMartenModule
             .AddEventType<PlayerDied>()
             .AddEventType<GameEnded>();
 
-        options.Projections.Snapshot<LobbyState>(SnapshotLifecycle.Inline);
-        options.Projections.Snapshot<GameState>(SnapshotLifecycle.Inline);
+        options.Projections.LiveStreamAggregation<LobbyState>();
+        options.Projections.LiveStreamAggregation<GameState>();
 
-        options.Projections.Add<RoomLobbyViewProjection>(Inline);
-        options.Projections.Add<PlayerGameViewProjection>(Inline);
+        options.Projections.Add<RoomLobbyViewProjection>(Async);
+        options.Projections.Add<PlayerGameViewProjection>(Async);
         options.Projections.Add<GameLogViewProjection>(Async);
 
         options.Events.UseOptimizedProjectionRebuilds = true;

@@ -12,7 +12,6 @@ public record UpdateGameSettings
     public required GameSettings Settings { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class UpdateGameSettingsEndpoint
 {
     public static ProblemDetails Validate(UpdateGameSettings command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)

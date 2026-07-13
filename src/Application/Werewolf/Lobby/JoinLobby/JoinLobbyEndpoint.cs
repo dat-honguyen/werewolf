@@ -12,7 +12,6 @@ public record JoinLobby
     public required string DisplayName { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class JoinLobbyEndpoint
 {
     public static ProblemDetails Validate(JoinLobby command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)

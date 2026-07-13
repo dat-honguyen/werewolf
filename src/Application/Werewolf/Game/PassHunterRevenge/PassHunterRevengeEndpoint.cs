@@ -11,7 +11,6 @@ public record PassHunterRevenge
     public required Guid PlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class PassHunterRevengeEndpoint
 {
     public static ProblemDetails Validate(PassHunterRevenge command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

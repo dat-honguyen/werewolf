@@ -12,7 +12,6 @@ public record KickPlayer
     public required Guid PlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class KickPlayerEndpoint
 {
     public static ProblemDetails Validate(KickPlayer command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)

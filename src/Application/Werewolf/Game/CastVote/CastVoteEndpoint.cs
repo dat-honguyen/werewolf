@@ -12,7 +12,6 @@ public record CastVote
     public Guid? TargetPlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class CastVoteEndpoint
 {
     public static ProblemDetails Validate(CastVote command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

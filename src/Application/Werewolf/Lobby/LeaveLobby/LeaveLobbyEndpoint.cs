@@ -12,7 +12,6 @@ public record LeaveLobby
     public required Guid PlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class LeaveLobbyEndpoint
 {
     public static ProblemDetails Validate(LeaveLobby command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)

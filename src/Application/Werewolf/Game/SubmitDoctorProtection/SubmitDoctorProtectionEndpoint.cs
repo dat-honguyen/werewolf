@@ -12,7 +12,6 @@ public record SubmitDoctorProtection
     public required Guid TargetPlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class SubmitDoctorProtectionEndpoint
 {
     public static ProblemDetails Validate(SubmitDoctorProtection command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

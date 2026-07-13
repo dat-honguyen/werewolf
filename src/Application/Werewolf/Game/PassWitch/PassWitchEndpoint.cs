@@ -11,7 +11,6 @@ public record PassWitch
     public required Guid PlayerId { get; init; }
 }
 
-[MartenStore(typeof(IWerewolfStore))]
 public static class PassWitchEndpoint
 {
     public static ProblemDetails Validate(PassWitch command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)

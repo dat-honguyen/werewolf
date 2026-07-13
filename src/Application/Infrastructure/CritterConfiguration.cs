@@ -11,6 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Text.Json.Serialization;
+using Application.Werewolf;
+using Application.Werewolf.Game;
 using Weasel.Core;
 using Wolverine.ErrorHandling;
 using Wolverine.FluentValidation;
@@ -92,6 +94,19 @@ public static class CritterConfiguration
                     // Fast forwarding reduces latency by avoiding intermediate persistence hops.
                     opts.UseFastEventForwarding = true;
                 })
+                // Forward committed Game events to the notification handlers (Werewolf/Notifications),
+                // which turn them into SignalR pushes to room/player groups.
+                .PublishEventsToWolverine("WerewolfNotifications", x =>
+                {
+                    x.PublishEvent<GameStarted>();
+                    x.PublishEvent<NightStarted>();
+                    x.PublishEvent<DayStarted>();
+                    x.PublishEvent<VotingStarted>();
+                    x.PublishEvent<PlayerDied>();
+                    x.PublishEvent<PlayerLynched>();
+                    x.PublishEvent<SeerInspectionPerformed>();
+                    x.PublishEvent<GameEnded>();
+                })
                 // InitializeWith ensures configured schemas and features are bootstrapped at startup.
                 .InitializeWith();
 
@@ -165,9 +180,6 @@ public static class CritterConfiguration
             {
                 Events =
                 {
-                    // Use string stream ids, single-tenant, and efficient append behavior.
-                    // String ids are more portable for external integrations and diagnostics.
-                    StreamIdentity = StreamIdentity.AsString,
                     // Single tenancy keeps all documents/streams in the default schema.
                     TenancyStyle = TenancyStyle.Single,
                     // Identity map avoids duplicate aggregate loads within a session.
@@ -204,6 +216,9 @@ public static class CritterConfiguration
             // Track connections for pool visibility and event counters for throughput.
             opts.OpenTelemetry.TrackConnections = TrackLevel.Normal;
             opts.OpenTelemetry.TrackEventCounters();
+
+            WerewolfMartenModule.Configure(opts);
+
             return opts;
         });
     }

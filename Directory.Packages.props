@@ -20,6 +20,7 @@
     <PackageVersion Include="WolverineFx.Http.FluentValidation" Version="6.16.0" />
     <PackageVersion Include="WolverineFx.Http.Marten" Version="6.16.0" />
     <PackageVersion Include="WolverineFx.Marten" Version="6.16.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.16.0" />
     <PackageVersion Include="WolverineFx.SignalR" Version="6.16.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
