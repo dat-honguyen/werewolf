@@ -1,6 +1,7 @@
 using Application.Werewolf.Game;
 using Application.Werewolf.Lobby;
 using Application.Werewolf.ReadModels;
+using JasperFx.Events.Projections;
 using static JasperFx.Events.Projections.ProjectionLifecycle;
 
 namespace Application.Werewolf;
@@ -46,8 +47,8 @@ public static class WerewolfMartenModule
             .AddEventType<PlayerDied>()
             .AddEventType<GameEnded>();
 
-        options.Projections.LiveStreamAggregation<LobbyState>();
-        options.Projections.LiveStreamAggregation<GameState>();
+        options.Projections.Snapshot<LobbyState>(SnapshotLifecycle.Inline);
+        options.Projections.Snapshot<GameState>(SnapshotLifecycle.Inline);
 
         options.Projections.Add<RoomLobbyViewProjection>(Inline);
         options.Projections.Add<PlayerGameViewProjection>(Inline);

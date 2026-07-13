@@ -2,4 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Application/Application.csproj" />
   </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="docker-compose.yml" />
+  </Folder>
 </Solution>
