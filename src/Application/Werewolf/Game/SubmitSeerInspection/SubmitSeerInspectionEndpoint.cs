@@ -13,7 +13,7 @@ public record SubmitSeerInspection
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class SubmitSeerInspectionHandler
+public static class SubmitSeerInspectionEndpoint
 {
     public static ProblemDetails Validate(SubmitSeerInspection command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {

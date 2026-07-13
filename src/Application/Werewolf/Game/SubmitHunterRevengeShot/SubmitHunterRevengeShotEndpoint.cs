@@ -13,7 +13,7 @@ public record SubmitHunterRevengeShot
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class SubmitHunterRevengeShotHandler
+public static class SubmitHunterRevengeShotEndpoint
 {
     public static ProblemDetails Validate(SubmitHunterRevengeShot command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {

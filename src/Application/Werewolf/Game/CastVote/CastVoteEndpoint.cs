@@ -13,7 +13,7 @@ public record CastVote
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class CastVoteHandler
+public static class CastVoteEndpoint
 {
     public static ProblemDetails Validate(CastVote command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {

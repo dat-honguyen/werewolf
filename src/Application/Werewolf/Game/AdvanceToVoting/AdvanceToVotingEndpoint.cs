@@ -12,7 +12,7 @@ public record AdvanceToVoting
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class AdvanceToVotingHandler
+public static class AdvanceToVotingEndpoint
 {
     public static ProblemDetails Validate(AdvanceToVoting command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {

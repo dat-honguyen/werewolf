@@ -13,7 +13,7 @@ public record SubmitDoctorProtection
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class SubmitDoctorProtectionHandler
+public static class SubmitDoctorProtectionEndpoint
 {
     public static ProblemDetails Validate(SubmitDoctorProtection command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {

@@ -15,7 +15,7 @@ public record SubmitWerewolfVote
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class SubmitWerewolfVoteHandler
+public static class SubmitWerewolfVoteEndpoint
 {
     public static ProblemDetails Validate(SubmitWerewolfVote command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {

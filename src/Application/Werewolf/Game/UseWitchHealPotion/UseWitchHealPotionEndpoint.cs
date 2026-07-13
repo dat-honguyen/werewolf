@@ -12,7 +12,7 @@ public record UseWitchHealPotion
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class UseWitchHealPotionHandler
+public static class UseWitchHealPotionEndpoint
 {
     public static ProblemDetails Validate(UseWitchHealPotion command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken) 
         

@@ -13,7 +13,7 @@ public record LeaveLobby
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class LeaveLobbyHandler
+public static class LeaveLobbyEndpoint
 {
     public static ProblemDetails Validate(LeaveLobby command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)
     {

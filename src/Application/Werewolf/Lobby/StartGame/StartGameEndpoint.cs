@@ -1,10 +1,11 @@
 using Application.Werewolf.Domain;
 using Application.Werewolf.Game;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Application.Werewolf.Lobby;
+namespace Application.Werewolf.Lobby.StartGame;
 
 public record StartGame
 {
@@ -26,7 +27,7 @@ public record StartGameResponse
 /// a manual FetchForWriting + MartenOps.StartStream, unlike the rest of the Lobby/Game handlers.
 /// </summary>
 [MartenStore(typeof(IWerewolfStore))]
-public static class StartGameHandler
+public static class StartGameEndpoint
 {
     // Note: this handler loads the Lobby manually (see class remarks above), so there's no
     // declaratively-loaded aggregate for a Validate(command, LobbyState) method to share — the

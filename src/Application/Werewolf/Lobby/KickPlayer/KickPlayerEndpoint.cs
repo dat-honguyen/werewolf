@@ -13,7 +13,7 @@ public record KickPlayer
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class KickPlayerHandler
+public static class KickPlayerEndpoint
 {
     public static ProblemDetails Validate(KickPlayer command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)
     {

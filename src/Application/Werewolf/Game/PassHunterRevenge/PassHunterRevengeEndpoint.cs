@@ -12,7 +12,7 @@ public record PassHunterRevenge
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class PassHunterRevengeHandler
+public static class PassHunterRevengeEndpoint
 {
     public static ProblemDetails Validate(PassHunterRevenge command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {

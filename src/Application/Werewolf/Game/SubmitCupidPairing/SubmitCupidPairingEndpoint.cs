@@ -14,7 +14,7 @@ public record SubmitCupidPairing
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class SubmitCupidPairingHandler
+public static class SubmitCupidPairingEndpoint
 {
     public static ProblemDetails Validate(SubmitCupidPairing command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {

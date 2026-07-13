@@ -14,7 +14,7 @@ public record UpdateRoleDistribution
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class UpdateRoleDistributionHandler
+public static class UpdateRoleDistributionEndpoint
 {
     public static ProblemDetails Validate(UpdateRoleDistribution command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)
     {

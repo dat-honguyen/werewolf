@@ -12,7 +12,7 @@ public record CancelLobby
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class CancelLobbyHandler
+public static class CancelLobbyEndpoint
 {
     public static ProblemDetails Validate(CancelLobby command, [ReadAggregate("RoomCode")] LobbyState state, CancellationToken cancellationToken)
     {

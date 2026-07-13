@@ -3,7 +3,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Application.Werewolf.Lobby;
+namespace Application.Werewolf.Lobby.CreateLobby;
 
 public record CreateLobby
 {
@@ -17,7 +17,7 @@ public record CreateLobbyResponse
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class CreateLobbyHandler
+public static class CreateLobbyEndpoint
 {
     [WolverinePost("/api/v1/lobby")]
     public static async Task<(CreateLobbyResponse, IStartStream)> Handle(

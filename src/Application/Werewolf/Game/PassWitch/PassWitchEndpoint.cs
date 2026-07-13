@@ -12,7 +12,7 @@ public record PassWitch
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class PassWitchHandler
+public static class PassWitchEndpoint
 {
     public static ProblemDetails Validate(PassWitch command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {

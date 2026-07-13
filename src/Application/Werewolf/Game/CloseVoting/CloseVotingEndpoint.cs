@@ -12,7 +12,7 @@ public record CloseVoting
 }
 
 [MartenStore(typeof(IWerewolfStore))]
-public static class CloseVotingHandler
+public static class CloseVotingEndpoint
 {
     public static ProblemDetails Validate(CloseVoting command, [ReadAggregate("RoomCode")] GameState state, CancellationToken cancellationToken)
     {
