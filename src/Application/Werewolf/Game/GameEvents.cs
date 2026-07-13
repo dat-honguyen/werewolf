@@ -1,0 +1,139 @@
+using Application.Werewolf.Domain;
+using System;
+using System.Collections.Generic;
+
+namespace Application.Werewolf.Game;
+
+public record GameStarted
+{
+    public required Guid GameId { get; init; }
+    public required RoomCode RoomCode { get; init; }
+    public required Guid StartedBy { get; init; }
+    public required GameSettings Settings { get; init; }
+    public required DateTime StartedAtUtc { get; init; }
+}
+
+public record RolesAssigned
+{
+    public required Dictionary<Guid, Role> Assignments { get; init; }
+}
+
+public record NightStarted
+{
+    public required int NightNumber { get; init; }
+    public required DateTime StartedAtUtc { get; init; }
+}
+
+public record CupidPairedLovers
+{
+    public required Guid CupidPlayerId { get; init; }
+    public required Guid FirstPlayerId { get; init; }
+    public required Guid SecondPlayerId { get; init; }
+}
+
+public record WerewolfVoteCast
+{
+    public required Guid WolfPlayerId { get; init; }
+    public required Guid TargetPlayerId { get; init; }
+}
+
+public record WerewolfTargetLocked
+{
+    public required Guid TargetPlayerId { get; init; }
+}
+
+public record DoctorProtectionChosen
+{
+    public required Guid DoctorPlayerId { get; init; }
+    public required Guid ProtectedPlayerId { get; init; }
+}
+
+public record SeerInspectionPerformed
+{
+    public required Guid SeerPlayerId { get; init; }
+    public required Guid TargetPlayerId { get; init; }
+    public required Role ObservedRole { get; init; }
+}
+
+public record WitchHealUsed
+{
+    public required Guid WitchPlayerId { get; init; }
+}
+
+public record WitchPoisonUsed
+{
+    public required Guid WitchPlayerId { get; init; }
+    public required Guid TargetPlayerId { get; init; }
+}
+
+public record WitchPassed
+{
+    public required Guid WitchPlayerId { get; init; }
+}
+
+public record NightResolved
+{
+    public required List<Guid> NightDeaths { get; init; }
+}
+
+public record HunterRevengePending
+{
+    public required Guid HunterPlayerId { get; init; }
+}
+
+public record HunterRevengeShotFired
+{
+    public required Guid HunterPlayerId { get; init; }
+    public required Guid TargetPlayerId { get; init; }
+}
+
+public record HunterRevengeDeclined
+{
+    public required Guid HunterPlayerId { get; init; }
+}
+
+public record DayStarted
+{
+    public required int DayNumber { get; init; }
+    public required DateTime StartedAtUtc { get; init; }
+}
+
+public record VotingStarted
+{
+    public required DateTime StartedAtUtc { get; init; }
+}
+
+public record VoteCast
+{
+    public required Guid VoterPlayerId { get; init; }
+    public Guid? TargetPlayerId { get; init; }
+}
+
+public record VotingClosed
+{
+    public required DateTime ClosedAtUtc { get; init; }
+}
+
+public record LynchTargetDetermined
+{
+    public required Guid TargetPlayerId { get; init; }
+}
+
+public record NoLynchOccurred;
+
+public record PlayerLynched
+{
+    public required Guid PlayerId { get; init; }
+}
+
+public record PlayerDied
+{
+    public required Guid PlayerId { get; init; }
+    public required string Cause { get; init; }
+}
+
+public record GameEnded
+{
+    public required WinningFaction WinningFaction { get; init; }
+    public required DateTime EndedAtUtc { get; init; }
+}

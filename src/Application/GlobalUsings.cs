@@ -1,0 +1,11 @@
+global using JasperFx;
+global using JasperFx.Events;
+global using JasperFx.Events.Aggregation;
+global using JasperFx.Events.Daemon;
+global using JasperFx.Events.Projections;
+global using Marten;
+global using Marten.Schema;
+global using Wolverine;
+global using Wolverine.Http;
+global using Wolverine.Http.Marten;
+global using Wolverine.Marten;
