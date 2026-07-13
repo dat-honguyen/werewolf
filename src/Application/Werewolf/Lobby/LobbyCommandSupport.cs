@@ -16,15 +16,14 @@ internal static class LobbyCommandSupport
         RoomCode roomCode,
         CancellationToken cancellationToken)
     {
-        var lobby = await session.Query<LobbyState>()
-            .SingleOrDefaultAsync(x => x.RoomCode.Value == roomCode.Value, cancellationToken);
+        var stream = await session.Events.FetchForWriting<LobbyState, RoomCode>(roomCode, cancellationToken);
 
-        if (lobby is null)
+        if (stream.Aggregate is null)
         {
             throw new InvalidOperationException($"Lobby '{roomCode.Value}' does not exist.");
         }
 
-        return await session.Events.FetchForWriting<LobbyState>(lobby.Id, cancellationToken);
+        return stream;
     }
 
     internal static IEnumerable<string> ValidateOpen(LobbyState state)

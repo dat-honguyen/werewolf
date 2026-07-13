@@ -29,10 +29,6 @@ public static class CloseVotingEndpoint
     }
 
     [WolverinePost("/api/v1/game/voting/close")]
-    public static Events Handle(CloseVoting command, [WriteAggregate("RoomCode")] GameState state)
-    {
-        // TODO(wiring): this should also determine the lynch target (or NoLynchOccurred) and
-        // resolve the death cascade (GameCommandSupport.CloseVotingAndResolve) — deferred for now.
-        return [new VotingClosed { ClosedAtUtc = DateTime.UtcNow }];
-    }
+    public static Events Handle(CloseVoting command, [WriteAggregate("RoomCode")] GameState state) =>
+        GameCommandSupport.CloseVotingAndResolve(state);
 }

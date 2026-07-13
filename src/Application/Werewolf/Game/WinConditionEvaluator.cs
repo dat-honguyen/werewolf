@@ -1,13 +1,22 @@
 using Application.Werewolf.Domain;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Application.Werewolf.Game;
 
 public static class WinConditionEvaluator
 {
-    public static WinningFaction? Evaluate(GameState state)
+    /// <summary>
+    /// Evaluates the win condition. <paramref name="newlyDead"/> lets a caller mid-way through
+    /// building a resolution (e.g. <see cref="GameCommandSupport.TryResumeAfterHunterResolution"/>)
+    /// treat players it just decided to kill as dead even though those <c>PlayerDied</c> events
+    /// haven't been folded into <paramref name="state"/> yet.
+    /// </summary>
+    public static WinningFaction? Evaluate(GameState state, IReadOnlyCollection<Guid>? newlyDead = null)
     {
-        var alive = state.Players.Values.Where(x => x.IsAlive).ToList();
+        var alive = state.Players.Values
+            .Where(x => x.IsAlive && (newlyDead is null || !newlyDead.Contains(x.PlayerId)))
+            .ToList();
 
         if (alive.Count == 0)
         {

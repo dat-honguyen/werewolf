@@ -61,8 +61,6 @@ public static class SubmitWerewolfVoteEndpoint
             }
         }
 
-        // TODO(wiring): once all night roles are done, this should also trigger night resolution
-        // (GameCommandSupport.TryResolveNight) — deferred for now.
         return events;
     }
 }

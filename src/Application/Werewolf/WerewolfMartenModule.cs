@@ -53,6 +53,7 @@ public static class WerewolfMartenModule
         options.Projections.Add<RoomLobbyViewProjection>(Async);
         options.Projections.Add<PlayerGameViewProjection>(Async);
         options.Projections.Add<GameLogViewProjection>(Async);
+        options.Projections.Add<GameFlowTriggerProjection>(Async);
 
         options.Events.UseOptimizedProjectionRebuilds = true;
         options.Projections.Errors.SkipApplyErrors = false;

@@ -13,15 +13,14 @@ public static class GameCommandSupport
         RoomCode roomCode,
         CancellationToken cancellationToken)
     {
-        var game = await session.Query<GameState>()
-            .SingleOrDefaultAsync(x => x.RoomCode.Value == roomCode.Value, cancellationToken);
+        var stream = await session.Events.FetchForWriting<GameState, RoomCode>(roomCode, cancellationToken);
 
-        if (game is null)
+        if (stream.Aggregate is null)
         {
             throw new InvalidOperationException($"Game for room '{roomCode.Value}' does not exist.");
         }
 
-        return await session.Events.FetchForWriting<GameState>(game.Id, cancellationToken);
+        return stream;
     }
 
     internal static IEnumerable<string> ValidatePhase(GameState state, GamePhase phase)
@@ -48,11 +47,22 @@ public static class GameCommandSupport
         }
     }
 
-    internal static void TryResolveNight(GameState state, IEventStream<GameState> stream)
+    internal static bool AllAliveVoted(GameState state) =>
+        state.AlivePlayers().All(id => state.CurrentVote.Votes.ContainsKey(id));
+
+    /// <summary>
+    /// If the night checklist is complete, resolves the night death cascade (and any phase
+    /// transition it unblocks) and returns the events to append. Returns an empty <see cref="Events"/>
+    /// otherwise, so this is safe to call speculatively — e.g. from <see cref="GameFlowTriggerHandler"/>
+    /// every time a night-role action might have just completed the checklist.
+    /// </summary>
+    internal static Events TryResolveNight(GameState state)
     {
+        var events = new Events();
+
         if (!NightChecklist.IsComplete(state))
         {
-            return;
+            return events;
         }
 
         var victims = new List<Guid>();
@@ -73,27 +83,35 @@ public static class GameCommandSupport
 
         var resolution = DeathResolver.Resolve(state, victims);
 
-        stream.AppendOne(new NightResolved
+        events += new NightResolved
         {
             NightDeaths = resolution.DeadPlayers.ToList()
-        });
+        };
 
         foreach (var playerId in resolution.DeadPlayers)
         {
-            stream.AppendOne(new PlayerDied { PlayerId = playerId, Cause = "night" });
+            events += new PlayerDied { PlayerId = playerId, Cause = "night" };
         }
 
         foreach (var hunterId in resolution.PendingHunterRevenge)
         {
-            stream.AppendOne(new HunterRevengePending { HunterPlayerId = hunterId });
+            events += new HunterRevengePending { HunterPlayerId = hunterId };
         }
 
-        TryResumeAfterHunterResolution(state, stream, resolution.PendingHunterRevenge.Count);
+        events.AddRange(TryResumeAfterHunterResolution(state, GamePhase.Night, resolution.DeadPlayers, resolution.PendingHunterRevenge.Count));
+
+        return events;
     }
 
-    internal static void CloseVotingAndResolve(GameState state, IEventStream<GameState> stream)
+    /// <summary>
+    /// Closes voting, determines the lynch target (or no-lynch), resolves the resulting death
+    /// cascade, and returns the events to append. Callers are responsible for guarding phase — this
+    /// always closes voting unconditionally, matching both the explicit host <c>CloseVoting</c>
+    /// action and the auto-close-when-all-voted trigger.
+    /// </summary>
+    internal static Events CloseVotingAndResolve(GameState state)
     {
-        stream.AppendOne(new VotingClosed { ClosedAtUtc = DateTime.UtcNow });
+        var events = new Events { new VotingClosed { ClosedAtUtc = DateTime.UtcNow } };
 
         var voted = state.CurrentVote.Votes.Where(x => x.Value.HasValue)
             .GroupBy(x => x.Value!.Value)
@@ -103,62 +121,116 @@ public static class GameCommandSupport
 
         if (voted.Count == 0 || (voted.Count > 1 && voted[0].Count == voted[1].Count))
         {
-            stream.AppendOne(new NoLynchOccurred());
-            stream.AppendOne(new NightStarted { NightNumber = state.NightNumber + 1, StartedAtUtc = DateTime.UtcNow });
-            return;
+            events += new NoLynchOccurred();
+            events += new NightStarted { NightNumber = state.NightNumber + 1, StartedAtUtc = DateTime.UtcNow };
+            return events;
         }
 
         var lynchTarget = voted[0].PlayerId;
-        stream.AppendOne(new LynchTargetDetermined { TargetPlayerId = lynchTarget });
-        stream.AppendOne(new PlayerLynched { PlayerId = lynchTarget });
-        stream.AppendOne(new PlayerDied { PlayerId = lynchTarget, Cause = "lynch" });
+        events += new LynchTargetDetermined { TargetPlayerId = lynchTarget };
+        events += new PlayerLynched { PlayerId = lynchTarget };
+        events += new PlayerDied { PlayerId = lynchTarget, Cause = "lynch" };
 
         var deaths = DeathResolver.Resolve(state, [lynchTarget]);
         foreach (var linked in deaths.DeadPlayers.Where(x => x != lynchTarget))
         {
-            stream.AppendOne(new PlayerDied { PlayerId = linked, Cause = "lover-link" });
+            events += new PlayerDied { PlayerId = linked, Cause = "lover-link" };
         }
 
         foreach (var hunterId in deaths.PendingHunterRevenge)
         {
-            stream.AppendOne(new HunterRevengePending { HunterPlayerId = hunterId });
+            events += new HunterRevengePending { HunterPlayerId = hunterId };
         }
 
-        TryResumeAfterHunterResolution(state, stream, deaths.PendingHunterRevenge.Count);
+        events.AddRange(TryResumeAfterHunterResolution(state, GamePhase.DayResolution, deaths.DeadPlayers, deaths.PendingHunterRevenge.Count));
+
+        return events;
     }
 
     /// <summary>
-    /// Resumes the phase transition that a night-resolution or lynch was in the middle of once no
-    /// Hunter revenge shots remain outstanding. The pre-append <paramref name="state"/> does not yet
-    /// reflect events just appended to the stream, so callers pass <paramref name="dequeuedCount"/>
-    /// (hunters just resolved off the front of the queue) and <paramref name="newlyPendingCount"/>
-    /// (new HunterRevengePending events just appended) to account for that.
+    /// Fires the Hunter's revenge shot: appends the shot itself, resolves the death cascade for the
+    /// target (including any lover-link chain), and resumes whichever phase transition the death
+    /// that queued this Hunter had paused.
     /// </summary>
-    internal static void TryResumeAfterHunterResolution(
+    internal static Events ResolveHunterRevengeShot(GameState state, Guid hunterPlayerId, Guid targetPlayerId)
+    {
+        var events = new Events
+        {
+            new HunterRevengeShotFired { HunterPlayerId = hunterPlayerId, TargetPlayerId = targetPlayerId }
+        };
+
+        var deaths = DeathResolver.Resolve(state, [targetPlayerId]);
+        foreach (var playerId in deaths.DeadPlayers)
+        {
+            events += new PlayerDied
+            {
+                PlayerId = playerId,
+                Cause = playerId == targetPlayerId ? "hunter-revenge" : "lover-link"
+            };
+        }
+
+        foreach (var newHunterId in deaths.PendingHunterRevenge)
+        {
+            events += new HunterRevengePending { HunterPlayerId = newHunterId };
+        }
+
+        events.AddRange(TryResumeAfterHunterResolution(state, state.Phase, deaths.DeadPlayers, deaths.PendingHunterRevenge.Count, dequeuedCount: 1));
+
+        return events;
+    }
+
+    /// <summary>
+    /// Declines the Hunter's revenge shot and resumes whichever phase transition the death that
+    /// queued this Hunter had paused.
+    /// </summary>
+    internal static Events DeclineHunterRevenge(GameState state, Guid hunterPlayerId)
+    {
+        var events = new Events { new HunterRevengeDeclined { HunterPlayerId = hunterPlayerId } };
+        events.AddRange(TryResumeAfterHunterResolution(state, state.Phase, [], newlyPendingCount: 0, dequeuedCount: 1));
+        return events;
+    }
+
+    /// <summary>
+    /// Resumes the phase transition that a night-resolution, lynch, or hunter-revenge shot was in
+    /// the middle of once no Hunter revenge shots remain outstanding. The pre-append
+    /// <paramref name="state"/> does not yet reflect events just built alongside this call, so
+    /// callers pass <paramref name="pausedPhase"/> (the phase the transition is resuming from —
+    /// <paramref name="state"/>'s own <c>Phase</c> may already be stale, e.g. after building a
+    /// not-yet-folded <c>VotingClosed</c>), <paramref name="newlyDead"/> (players this same
+    /// resolution just killed, for win-condition evaluation), <paramref name="dequeuedCount"/>
+    /// (hunters just resolved off the front of the queue), and <paramref name="newlyPendingCount"/>
+    /// (new HunterRevengePending events just built).
+    /// </summary>
+    internal static Events TryResumeAfterHunterResolution(
         GameState state,
-        IEventStream<GameState> stream,
+        GamePhase pausedPhase,
+        IReadOnlyCollection<Guid> newlyDead,
         int newlyPendingCount,
         int dequeuedCount = 0)
     {
+        var events = new Events();
+
         if (state.PendingHunterRevenge.Count - dequeuedCount + newlyPendingCount > 0)
         {
-            return;
+            return events;
         }
 
-        var winner = WinConditionEvaluator.Evaluate(state);
+        var winner = WinConditionEvaluator.Evaluate(state, newlyDead);
         if (winner.HasValue)
         {
-            stream.AppendOne(new GameEnded { WinningFaction = winner.Value, EndedAtUtc = DateTime.UtcNow });
-            return;
+            events += new GameEnded { WinningFaction = winner.Value, EndedAtUtc = DateTime.UtcNow };
+            return events;
         }
 
-        if (state.Phase == GamePhase.Night)
+        if (pausedPhase == GamePhase.Night)
         {
-            stream.AppendOne(new DayStarted { DayNumber = state.DayNumber + 1, StartedAtUtc = DateTime.UtcNow });
+            events += new DayStarted { DayNumber = state.DayNumber + 1, StartedAtUtc = DateTime.UtcNow };
         }
-        else if (state.Phase == GamePhase.DayResolution)
+        else if (pausedPhase == GamePhase.DayResolution)
         {
-            stream.AppendOne(new NightStarted { NightNumber = state.NightNumber + 1, StartedAtUtc = DateTime.UtcNow });
+            events += new NightStarted { NightNumber = state.NightNumber + 1, StartedAtUtc = DateTime.UtcNow };
         }
+
+        return events;
     }
 }

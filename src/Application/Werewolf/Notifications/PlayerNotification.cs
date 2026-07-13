@@ -47,7 +47,7 @@ public record PlayerNotification
             : this.ToWebSocketGroup(RoomGroup(RoomCode));
 }
 
-public static class GameEventToNotificationHandlers
+public static class GameEventToNotificationHandler
 {
     public static SignalRMessage<PlayerNotification> Handle(GameStarted @event) =>
         PlayerNotification.Broadcast(@event.RoomCode, "game.started", new { @event.GameId }).ToWebSocketDestination();

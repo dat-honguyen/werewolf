@@ -24,10 +24,6 @@ public static class PassHunterRevengeEndpoint
     }
 
     [WolverinePost("/api/v1/game/hunter/pass")]
-    public static Events Handle(PassHunterRevenge command, [WriteAggregate("RoomCode")] GameState state)
-    {
-        // TODO(wiring): this should also resume the paused phase transition
-        // (GameCommandSupport.TryResumeAfterHunterResolution) — deferred for now.
-        return [new HunterRevengeDeclined { HunterPlayerId = command.PlayerId }];
-    }
+    public static Events Handle(PassHunterRevenge command, [WriteAggregate("RoomCode")] GameState state) =>
+        GameCommandSupport.DeclineHunterRevenge(state, command.PlayerId);
 }

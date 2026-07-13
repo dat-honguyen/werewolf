@@ -29,10 +29,6 @@ public static class PassWitchEndpoint
     }
 
     [WolverinePost("/api/v1/game/witch/pass")]
-    public static Events Handle(PassWitch command, [WriteAggregate("RoomCode")] GameState state)
-    {
-        // TODO(wiring): once all night roles are done, this should also trigger night resolution
-        // (GameCommandSupport.TryResolveNight) — deferred for now.
-        return [new WitchPassed { WitchPlayerId = command.PlayerId }];
-    }
+    public static Events Handle(PassWitch command, [WriteAggregate("RoomCode")] GameState state) =>
+        [new WitchPassed { WitchPlayerId = command.PlayerId }];
 }

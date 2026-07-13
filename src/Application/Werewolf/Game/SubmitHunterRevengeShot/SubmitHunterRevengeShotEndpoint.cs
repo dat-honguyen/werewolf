@@ -30,11 +30,6 @@ public static class SubmitHunterRevengeShotEndpoint
     }
 
     [WolverinePost("/api/v1/game/hunter/shoot")]
-    public static Events Handle(SubmitHunterRevengeShot command, [WriteAggregate("RoomCode")] GameState state)
-    {
-        // TODO(wiring): this should also resolve the death cascade (DeathResolver.Resolve), any
-        // further chained HunterRevengePending, and resume the paused phase transition
-        // (GameCommandSupport.TryResumeAfterHunterResolution) — deferred for now.
-        return [new HunterRevengeShotFired { HunterPlayerId = command.PlayerId, TargetPlayerId = command.TargetPlayerId }];
-    }
+    public static Events Handle(SubmitHunterRevengeShot command, [WriteAggregate("RoomCode")] GameState state) =>
+        GameCommandSupport.ResolveHunterRevengeShot(state, command.PlayerId, command.TargetPlayerId);
 }

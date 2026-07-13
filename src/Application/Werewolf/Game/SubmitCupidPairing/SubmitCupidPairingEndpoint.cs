@@ -43,10 +43,6 @@ public static class SubmitCupidPairingEndpoint
     }
 
     [WolverinePost("/api/v1/game/cupid")]
-    public static Events Handle(SubmitCupidPairing command, [WriteAggregate("RoomCode")] GameState state)
-    {
-        // TODO(wiring): once all night roles are done, this should also trigger night resolution
-        // (GameCommandSupport.TryResolveNight) — deferred for now.
-        return [new CupidPairedLovers { CupidPlayerId = command.PlayerId, FirstPlayerId = command.FirstPlayerId, SecondPlayerId = command.SecondPlayerId }];
-    }
+    public static Events Handle(SubmitCupidPairing command, [WriteAggregate("RoomCode")] GameState state) =>
+        [new CupidPairedLovers { CupidPlayerId = command.PlayerId, FirstPlayerId = command.FirstPlayerId, SecondPlayerId = command.SecondPlayerId }];
 }

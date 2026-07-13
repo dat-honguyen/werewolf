@@ -37,8 +37,6 @@ public static class SubmitSeerInspectionEndpoint
     [WolverinePost("/api/v1/game/seer/inspect")]
     public static Events Handle(SubmitSeerInspection command, [WriteAggregate("RoomCode")] GameState state)
     {
-        // TODO(wiring): once all night roles are done, this should also trigger night resolution
-        // (GameCommandSupport.TryResolveNight) — deferred for now.
         return
         [
             new SeerInspectionPerformed

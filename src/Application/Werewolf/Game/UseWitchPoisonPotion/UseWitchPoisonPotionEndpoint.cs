@@ -40,10 +40,6 @@ public static class UseWitchPoisonPotionEndpoint
     }
 
     [WolverinePost("/api/v1/game/witch/poison")]
-    public static Events Handle(UseWitchPoisonPotion command, [WriteAggregate("RoomCode")] GameState state)
-    {
-        // TODO(wiring): once all night roles are done, this should also trigger night resolution
-        // (GameCommandSupport.TryResolveNight) — deferred for now.
-        return [new WitchPoisonUsed { WitchPlayerId = command.PlayerId, TargetPlayerId = command.TargetPlayerId }];
-    }
+    public static Events Handle(UseWitchPoisonPotion command, [WriteAggregate("RoomCode")] GameState state) =>
+        [new WitchPoisonUsed { WitchPlayerId = command.PlayerId, TargetPlayerId = command.TargetPlayerId }];
 }

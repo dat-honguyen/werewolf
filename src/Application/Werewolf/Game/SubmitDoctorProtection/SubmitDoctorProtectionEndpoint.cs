@@ -40,10 +40,6 @@ public static class SubmitDoctorProtectionEndpoint
     }
 
     [WolverinePost("/api/v1/game/doctor/protect")]
-    public static Events Handle(SubmitDoctorProtection command, [WriteAggregate("RoomCode")] GameState state)
-    {
-        // TODO(wiring): once all night roles are done, this should also trigger night resolution
-        // (GameCommandSupport.TryResolveNight) — deferred for now.
-        return [new DoctorProtectionChosen { DoctorPlayerId = command.PlayerId, ProtectedPlayerId = command.TargetPlayerId }];
-    }
+    public static Events Handle(SubmitDoctorProtection command, [WriteAggregate("RoomCode")] GameState state) =>
+        [new DoctorProtectionChosen { DoctorPlayerId = command.PlayerId, ProtectedPlayerId = command.TargetPlayerId }];
 }

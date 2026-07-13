@@ -6,40 +6,43 @@ every HTTP endpoint the FE can call, and the SignalR notifications it should lis
 **Current backend status (read this first):** every endpoint below validates against current state
 and appends its event — that part is fully wired and safe to build against. The *automatic* parts of
 the flow (night auto-resolving once all roles have acted, day voting auto-closing once everyone's
-voted, hunter-revenge auto-resuming the paused phase, win-condition checks) are **not yet wired** —
-each endpoint has a `// TODO(wiring)` comment marking where that cascade will be added back in. Until
-then, phase advancement is a manual step: the FE (or a host action) needs its own "resolve/advance"
-trigger, or you poll/refresh state after each action. This doc describes the **intended** end-state
-flow; treat the auto-transitions as "coming soon" when wiring up polling vs. push-based UI updates.
+voted, hunter-revenge auto-resuming the paused phase, win-condition checks) are now wired — see §0.1
+for how.
 
 ---
 
 ## 0. Gaps vs. the design doc (`make-a-plan-werewolf-calm-hippo.md`)
 
-Comparing the current code against the original plan turned up three real gaps the FE needs to plan
-around — not just the cascade TODOs already called out above.
+Comparing the current code against the original plan turned up a design deviation the FE should know
+about, plus two real gaps.
 
-### 0.1 The "no wall-clock infra" sequencing mechanism is disconnected
+### 0.1 The cascade is wired via an async projection side effect, not same-transaction
 
-The plan's core design principle (§0) is: *"each command handler recomputes a completeness predicate
+The plan's core design principle (§0) was: *"each command handler recomputes a completeness predicate
 over the folded aggregate state and, if satisfied, appends the phase-advance event(s) in the same
-transaction."* That logic still exists in code (`NightChecklist`, `DeathResolver`,
-`WinConditionEvaluator`, `GameCommandSupport.TryResolveNight` / `CloseVotingAndResolve` /
-`TryResumeAfterHunterResolution`) but **no endpoint calls it anymore** — each of the 10 endpoints
-listed in §3/§4 below writes only its own single event (see the `TODO(wiring)` comment in each file).
-Concretely, right now:
+transaction."* The orchestration logic (`NightChecklist`, `DeathResolver`, `WinConditionEvaluator`,
+`GameCommandSupport.TryResolveNight` / `CloseVotingAndResolve` / `TryResumeAfterHunterResolution`)
+still exists, but two different wiring strategies are actually used depending on who causes the
+transition:
 
-- Submitting the last night action does **not** append `NightResolved`, does **not** kill anyone, and
-  does **not** start the day.
-- `SubmitHunterRevengeShot` records the shot but does **not** actually kill the target or chain
-  further deaths.
-- The last `CastVote` does **not** auto-close voting; `CloseVoting` records `VotingClosed` but does
-  **not** determine a lynch target or start the next night.
-- Win conditions are never evaluated, so `GameEnded` never fires on its own.
+- **Same transaction** — when the acting player's own command directly causes the next state:
+  `CloseVoting` (explicit host action) calls `GameCommandSupport.CloseVotingAndResolve` inline;
+  `SubmitHunterRevengeShot`/`PassHunterRevenge` resolve the shot's death cascade and resume the
+  paused phase inline via `GameCommandSupport.ResolveHunterRevengeShot` / `DeclineHunterRevenge`.
+- **Async, via a projection side effect** — when a system-wide condition is completed by whichever
+  of several independent actors happens to go last (a night role finishing the checklist, the last
+  alive player voting): `GameFlowTriggerProjection` (`Werewolf/Game/GameFlowTriggerProjection.cs`)
+  watches the Game event stream and publishes an internal `TryResolveNight` / `TryCloseVoting`
+  message (via Marten's `RaiseSideEffects`/`PublishMessage`, atomic with the projection's own
+  commit); `GameFlowTriggerHandler` re-checks the completeness predicate against freshly-loaded
+  state and appends the cascade if it still holds. This means those two transitions land a moment
+  after the triggering request returns (same async-daemon-catch-up caveat as the read-model
+  projections below) rather than in the same HTTP response — poll or wait for the SignalR
+  notification rather than assuming the state is fully advanced immediately after, say, the last
+  `SubmitSeerInspection` call returns.
 
-Until this is wired back in, treat every phase transition past the single event above as something
-the backend doesn't yet do — build the FE against the state machine in §1/§2 as the target, but don't
-expect the automatic edges to fire yet.
+Win conditions are evaluated as part of both paths (`TryResumeAfterHunterResolution`), so `GameEnded`
+now fires automatically whenever a death round settles a win.
 
 ### 0.2 No optimistic-concurrency `Version` on commands
 

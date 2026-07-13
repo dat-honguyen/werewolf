@@ -35,10 +35,6 @@ public static class CastVoteEndpoint
     }
 
     [WolverinePost("/api/v1/game/vote")]
-    public static Events Handle(CastVote command, [WriteAggregate("RoomCode")] GameState state)
-    {
-        // TODO(wiring): once all alive players have voted, this should also close voting and
-        // resolve the lynch (GameCommandSupport.CloseVotingAndResolve) — deferred for now.
-        return [new VoteCast { VoterPlayerId = command.VoterPlayerId, TargetPlayerId = command.TargetPlayerId }];
-    }
+    public static Events Handle(CastVote command, [WriteAggregate("RoomCode")] GameState state) =>
+        [new VoteCast { VoterPlayerId = command.VoterPlayerId, TargetPlayerId = command.TargetPlayerId }];
 }
