@@ -45,17 +45,24 @@ Example: `Game/SubmitWerewolfVote/SubmitWerewolfVoteEndpoint.cs`
   `Status` to 500) or `WolverineContinue.NoProblems`.
 - `[WolverinePost("/api/v1/...")] Handle(command, [WriteAggregate("RoomCode")] GameState state)`
   returns an `Events` collection to append to the aggregate's stream. The attribute's string argument
-  names the command property Wolverine uses to look up the aggregate (matched against a
-  `[NaturalKey]`/`[NaturalKeySource]`-marked property on the aggregate, e.g. `GameState.RoomCode`).
-- Never call `session.Events.FetchLatest<...>` (or `FetchForWriting`) by hand in an endpoint just to
-  check existence — that bypasses Wolverine's built-in 404 handling and any manual
-  `?? throw new InvalidOperationException(...)` on a missing aggregate surfaces as an unhandled 500,
-  not a 404 (see `GetGameStateEndpoint`/`GetGameLogEndpoint`, which had this bug). Always resolve the
-  aggregate via `[ReadAggregate("...")]`/`[WriteAggregate("...")]` instead — for GET endpoints keyed
-  by route data (e.g. `roomCode`), bind an `[AsParameters]` record with a `[FromRoute]` property of
-  the aggregate's natural-key type (`RoomCode` implements `IParsable<RoomCode>` for this) so
-  `[ReadAggregate("PropName")]` can resolve the aggregate straight from the route, with no manual
-  fetch or null-check.
+  names a property on the `command` parameter (a real POST body / message) that Wolverine matches
+  against a `[NaturalKey]`/`[NaturalKeySource]`-marked property on the aggregate, e.g.
+  `GameState.RoomCode`. **This natural-key resolution only works when the string argument names a
+  property on an actual message parameter** (the POST body). It does **not** work for plain
+  `[WolverineGet]` endpoints keyed by a route segment — confirmed by inspecting the generated code
+  (`dotnet run -- codegen write`): `[ReadAggregate("roomCode")]`/`[ReadAggregate(FromRoute = "roomCode")]`
+  on a GET endpoint always compiles to `Guid.TryParse(routeValue, ...)`, ignoring the aggregate's
+  natural-key type entirely, so it 404s for every request (`RoomCode` values like `"D2CSVD"` never
+  parse as a `Guid`). Don't reach for `[AsParameters]` + `[ReadAggregate("PropName")]` here either —
+  it compiles, but the parsed value is dead code; the same broken Guid path still runs.
+- For a **GET** endpoint keyed by a natural-key route segment, take the typed parameter directly
+  (`RoomCode roomCode` — Wolverine's ordinary route binding handles it because `RoomCode` implements
+  `IParsable<RoomCode>`), fetch with `session.Events.FetchLatest<TAggregate, RoomCode>(roomCode, ct)`,
+  and return the nullable response type (`Task<SomeResponse?>`) — return `null` on a miss instead of
+  throwing. Wolverine's nullable-return convention maps that straight to 200-or-404 automatically; no
+  manual status code, no `ProblemDetails`, no exception. (`GetGameStateEndpoint`, `GetGameLogEndpoint`,
+  `GetLobbyEndpoint` follow this shape.) Still never throw `InvalidOperationException` on a missing
+  aggregate just to signal "not found" — that surfaces as an unhandled 500, not a 404.
 
 ## Aggregate example
 
