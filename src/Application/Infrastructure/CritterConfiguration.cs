@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json.Serialization;
 using Application.Werewolf;
 using Application.Werewolf.Game;
-using Application.Werewolf.Lobby;
+using Application.Werewolf.Notifications;
 using Weasel.Core;
 using Wolverine.ErrorHandling;
 using Wolverine.FluentValidation;
@@ -111,17 +111,8 @@ public static class CritterConfiguration
                     x.PublishEvent<WerewolfTargetLocked>();
                     x.PublishEvent<VoteCast>();
                     x.PublishEvent<GameEnded>();
-                    // Lobby-side changes — see LobbyEventToNotificationHandler; all collapse to a
-                    // single "lobby.updated" push since clients re-fetch full state via GET.
-                    x.PublishEvent<PlayerJoinedLobby>();
-                    x.PublishEvent<PlayerLeftLobby>();
-                    x.PublishEvent<PlayerKickedFromLobby>();
-                    x.PublishEvent<HostTransferred>();
-                    x.PublishEvent<PlayerReadyStatusChanged>();
-                    x.PublishEvent<RoleDistributionUpdated>();
-                    x.PublishEvent<GameSettingsUpdated>();
-                    x.PublishEvent<LobbyCancelled>();
-                    x.PublishEvent<LobbyClosed>();
+                    // Lobby-side changes push via RoomLobbyViewProjection.RaiseSideEffects instead
+                    // (same pattern as GameFlowTriggerProjection) — no separate subscription needed.
                 })
                 // InitializeWith ensures configured schemas and features are bootstrapped at startup.
                 .InitializeWith();
@@ -170,6 +161,15 @@ public static class CritterConfiguration
 
                 // SignalR hub for pushing Werewolf game/lobby notifications to connected clients.
                 opts.UseSignalR();
+
+                // Without this, UseSignalR() alone registers the transport but nothing tells
+                // Wolverine's routing to actually send IGroupWebsocketMessage-implementing
+                // messages (e.g. PlayerNotification) out over it.
+                opts.Publish(x =>
+                {
+                    x.MessagesImplementing<IGroupWebsocketMessage>();
+                    x.ToSignalR();
+                });
             });
 
             // Configure System.Text.Json for Wolverine and minimal APIs.

@@ -3,11 +3,12 @@ using Application.Werewolf.Game;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Wolverine;
 using Wolverine.SignalR;
 
 namespace Application.Werewolf.Notifications;
 
-public record PlayerNotification
+public record PlayerNotification : IGroupWebsocketMessage
 {
     public required RoomCode RoomCode { get; init; }
     public required string Kind { get; init; }
@@ -117,4 +118,26 @@ public static class GameEventToNotificationHandler
             @event.WinningFaction,
             Roles = state.Players.ToDictionary(x => x.Key, x => x.Value.Role)
         }).ToWebSocketDestination();
+}
+
+/// <summary>
+/// Published by RoomLobbyViewProjection.RaiseSideEffects. A projection's slice.PublishMessage
+/// goes through normal message routing rather than the cascading-message pipeline, so it can't
+/// return a SignalRMessage&lt;T&gt; (an ISendMyself) directly — routing finds no subscriber for that
+/// wrapper type. This lightweight command bridges the two: it's routed and handled locally like
+/// any other message, and RoomGroupNotificationHandler's return value goes through the cascading
+/// pipeline, which does special-case ISendMyself. See docs/signalr-projection-example.md.
+///
+/// Deliberately NOT an IGroupWebsocketMessage: once a message type matches an explicit
+/// Publish(...).ToSignalR() rule, Wolverine routes it there exclusively and skips local handler
+/// dispatch — confirmed by testing against a live instance (RoomGroupNotificationHandler never
+/// ran, and the raw command itself was pushed to clients, when this implemented that interface).
+/// Leaving it a plain message keeps it local-only so the handler always fires.
+/// </summary>
+public record NotifyRoomUpdated(RoomCode RoomCode);
+
+public static class RoomGroupNotificationHandler
+{
+    public static SignalRMessage<PlayerNotification> Handle(NotifyRoomUpdated message) =>
+        PlayerNotification.Broadcast(message.RoomCode, "lobby.updated").ToWebSocketDestination();
 }
