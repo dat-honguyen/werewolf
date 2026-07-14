@@ -59,11 +59,11 @@ public record GameSettings
     public static GameSettings Default() => new()
     {
         RevealRoleOnDeath = true,
-        DoctorCanSelfProtect = false,
+        DoctorCanSelfProtect = true,
         WerewolfRequiresConsensus = true,
         WerewolfCanTargetWerewolf = false,
         WerewolfCanVoteNoKill = false,
-        WitchSinglePotionPerNight = true,
+        WitchSinglePotionPerNight = false,
         MinPlayers = 5,
         AllowForceStart = false
     };
