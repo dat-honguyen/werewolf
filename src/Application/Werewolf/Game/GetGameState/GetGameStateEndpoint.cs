@@ -1,8 +1,9 @@
 using Application.Werewolf.Domain;
-using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Application.Werewolf.Game.GetGameState;
 
@@ -26,18 +27,25 @@ public record GamePlayerDto
     public required bool IsAlive { get; init; }
 }
 
-public record GetGameStateQuery([FromRoute] RoomCode RoomCode);
-
 // Test/debugging-only read endpoint: GameState is a LiveStreamAggregation (never persisted as
-// a document), so there's no read model to query it from otherwise. Resolves via the same
-// natural-key mechanism [ReadAggregate]/[WriteAggregate] use elsewhere, read-only (FetchLatest).
+// a document), so there's no read model to query it from otherwise. [ReadAggregate]/[Aggregate]
+// only resolve identity as a Guid route value in this Wolverine version, which doesn't fit a
+// RoomCode natural key — so this fetches directly and relies on Wolverine's nullable-return
+// 200-or-404 convention instead (see claude.md).
 public static class GetGameStateEndpoint
 {
     [WolverineGet("/api/v1/game/{roomCode}")]
-    public static GameStateResponse Handle(
-        [AsParameters] GetGameStateQuery query,
-        [ReadAggregate("roomCode")] GameState state)
+    public static async Task<GameStateResponse?> Handle(
+        RoomCode roomCode,
+        IDocumentSession session,
+        CancellationToken cancellationToken)
     {
+        var state = await session.Events.FetchLatest<GameState, RoomCode>(roomCode, cancellationToken);
+        if (state is null)
+        {
+            return null;
+        }
+
         return new GameStateResponse
         {
             RoomCode = state.RoomCode.Value,
