@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -19,22 +20,22 @@ public static class UseWitchHealPotionEndpoint
 
         foreach (var error in GameCommandSupport.ValidatePhase(state, GamePhase.Night))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         if (!state.IsAlive(command.PlayerId) || state.Players[command.PlayerId].Role != Role.Witch || state.CurrentNight.WitchDone)
         {
-            return new ProblemDetails { Title = "Witch action is not available." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Witch action is not available." };
         }
 
         if (state.Players[command.PlayerId].WitchHealPotionUsed)
         {
-            return new ProblemDetails { Title = "The heal potion has already been used." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "The heal potion has already been used." };
         }
 
         if (state.CurrentNight.WerewolfLockedTarget is null)
         {
-            return new ProblemDetails { Title = "The werewolves have not locked a target yet." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "The werewolves have not locked a target yet." };
         }
 
         return  WolverineContinue.NoProblems;

@@ -52,8 +52,12 @@ public static class WerewolfMartenModule
 
         options.Projections.Add<RoomLobbyViewProjection>(Async);
         options.Projections.Add<PlayerGameViewProjection>(Async);
-        options.Projections.Add<GameLogViewProjection>(Async);
         options.Projections.Add<GameFlowTriggerProjection>(Async);
+
+        // Inline (not Async) so the GET log/directory endpoints read back-immediately-consistent
+        // data right after the triggering command, with no eventual-consistency polling needed.
+        options.Projections.Add<GameLogViewProjection>(ProjectionLifecycle.Inline);
+        options.Projections.Add<PlayerDirectoryProjection>(ProjectionLifecycle.Inline);
 
         options.Events.UseOptimizedProjectionRebuilds = true;
         options.Projections.Errors.SkipApplyErrors = false;

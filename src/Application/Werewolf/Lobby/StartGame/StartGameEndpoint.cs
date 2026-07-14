@@ -1,9 +1,9 @@
 using Application.Werewolf.Domain;
 using Application.Werewolf.Game;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Application.Werewolf.Lobby.StartGame;
 
@@ -21,71 +21,57 @@ public record StartGameResponse
 }
 
 /// <summary>
-/// Bridges the Lobby stream (append GameStarting/LobbyClosed) and a brand-new Game stream
-/// (StartStream) atomically in one transaction. Wolverine's [WriteAggregate] does not support
-/// combining an existing-stream append with a new-stream start in one handler, so this stays
-/// a manual FetchForWriting + MartenOps.StartStream, unlike the rest of the Lobby/Game handlers.
+/// Bridges the Lobby stream (append GameStarting/LobbyClosed via the declarative [WriteAggregate])
+/// and a brand-new Game stream (StartStream) in one handler. Both operations share the same
+/// injected IDocumentSession, so they still commit together in the single SaveChangesAsync
+/// Wolverine issues at the end of the HTTP chain.
 /// </summary>
 public static class StartGameEndpoint
 {
-    // Note: this handler loads the Lobby manually (see class remarks above), so there's no
-    // declaratively-loaded aggregate for a Validate(command, LobbyState) method to share — the
-    // Validate/Handle variable-sharing that powers railway validation elsewhere in this codebase
-    // depends on a [WriteAggregate]/[Aggregate]/[ReadAggregate] parameter existing on Handle.
-    // Guards stay inline exceptions here instead.
-    [WolverinePost("/api/v1/lobby/start")]
-    public static async Task<StartGameResponse> Handle(
-        StartGame command,
-        IDocumentSession session,
-        CancellationToken cancellationToken)
+    public static ProblemDetails Validate(StartGame command, [ReadAggregate("RoomCode")] LobbyState lobby)
     {
-        var lobbyStream = await LobbyCommandSupport.LoadLobbyStream(session, command.RoomCode, cancellationToken);
-        var lobby = lobbyStream.Aggregate ?? throw new InvalidOperationException("Lobby not found.");
-
         if (lobby.Status != LobbyStatus.Open)
         {
-            throw new InvalidOperationException("Lobby is not open.");
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Lobby is not open." };
         }
 
         if (lobby.HostPlayerId != command.RequestedBy)
         {
-            throw new InvalidOperationException("Only the host can start the game.");
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Only the host can start the game." };
         }
 
         if (lobby.Players.Count < lobby.Settings.MinPlayers)
         {
-            throw new InvalidOperationException($"At least {lobby.Settings.MinPlayers} players are required.");
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = $"At least {lobby.Settings.MinPlayers} players are required." };
         }
 
         if (!command.ForceStart && !lobby.AllPlayersReady())
         {
-            throw new InvalidOperationException("All players must be ready.");
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "All players must be ready." };
         }
 
         if (command.ForceStart && !lobby.Settings.AllowForceStart)
         {
-            throw new InvalidOperationException("Force start is disabled.");
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Force start is disabled." };
         }
 
         var roleErrors = LobbyCommandSupport.ValidateRoleDistribution(lobby.RoleDistribution, lobby.Players.Count).ToList();
         if (roleErrors.Count > 0)
         {
-            throw new InvalidOperationException(string.Join(" ", roleErrors));
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = string.Join(" ", roleErrors) };
         }
 
+        return WolverineContinue.NoProblems;
+    }
+
+    [WolverinePost("/api/v1/lobby/start")]
+    public static (StartGameResponse, Events) Handle(
+        StartGame command,
+        [WriteAggregate("RoomCode")] LobbyState lobby,
+        IDocumentSession session)
+    {
         var assignments = LobbyCommandSupport.AssignRoles(lobby);
         var now = DateTime.UtcNow;
-
-        lobbyStream.AppendOne(new GameStarting
-        {
-            StartedBy = command.RequestedBy,
-            StartedAtUtc = now
-        });
-
-        lobbyStream.AppendOne(new LobbyClosed
-        {
-            ClosedAtUtc = now
-        });
 
         var gameId = Guid.NewGuid();
         session.Events.StartStream<GameState>(
@@ -101,14 +87,17 @@ public static class StartGameEndpoint
             new RolesAssigned { Assignments = assignments },
             new NightStarted
             {
+                GameId = gameId,
                 NightNumber = 1,
                 StartedAtUtc = now
             });
 
-        return new()
-        {
-            GameId = gameId,
-            RoomCode = lobby.RoomCode.Value
-        };
+        Events lobbyEvents =
+        [
+            new GameStarting { StartedBy = command.RequestedBy, StartedAtUtc = now },
+            new LobbyClosed { ClosedAtUtc = now }
+        ];
+
+        return (new StartGameResponse { GameId = gameId, RoomCode = lobby.RoomCode.Value }, lobbyEvents);
     }
 }

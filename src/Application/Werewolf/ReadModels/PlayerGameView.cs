@@ -133,7 +133,7 @@ public class PlayerGameViewProjection : MultiStreamProjection<PlayerGameView, st
                     break;
 
                 case SeerInspectionPerformed seer when current is not null && seer.SeerPlayerId == playerId:
-                    current = current with { LastSeerResult = $"{seer.TargetPlayerId}:{seer.ObservedRole}" };
+                    current = current with { LastSeerResult = $"{seer.TargetPlayerId}:{(seer.IsWerewolf ? "Werewolf" : "NotWerewolf")}" };
                     break;
 
                 case GameEnded when current is not null:

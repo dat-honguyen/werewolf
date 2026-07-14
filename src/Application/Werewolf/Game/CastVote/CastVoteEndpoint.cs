@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -18,17 +19,17 @@ public static class CastVoteEndpoint
     {
         foreach (var error in GameCommandSupport.ValidatePhase(state, GamePhase.DayVoting))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         if (!state.IsAlive(command.VoterPlayerId))
         {
-            return new ProblemDetails { Title = "Only living players can vote." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Only living players can vote." };
         }
 
         if (command.TargetPlayerId.HasValue && !state.IsAlive(command.TargetPlayerId.Value))
         {
-            return new ProblemDetails { Title = "Vote target must be alive." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Vote target must be alive." };
         }
 
         return WolverineContinue.NoProblems;
@@ -36,5 +37,5 @@ public static class CastVoteEndpoint
 
     [WolverinePost("/api/v1/game/vote")]
     public static Events Handle(CastVote command, [WriteAggregate("RoomCode")] GameState state) =>
-        [new VoteCast { VoterPlayerId = command.VoterPlayerId, TargetPlayerId = command.TargetPlayerId }];
+        [new VoteCast { GameId = state.Id, VoterPlayerId = command.VoterPlayerId, TargetPlayerId = command.TargetPlayerId }];
 }

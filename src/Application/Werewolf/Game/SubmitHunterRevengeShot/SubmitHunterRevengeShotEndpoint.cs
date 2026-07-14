@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -18,12 +19,12 @@ public static class SubmitHunterRevengeShotEndpoint
     {
         foreach (var error in GameCommandSupport.ValidateHunterRevengeTurn(state, command.PlayerId))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         if (!state.IsAlive(command.TargetPlayerId))
         {
-            return new ProblemDetails { Title = "Hunter revenge target must be alive." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Hunter revenge target must be alive." };
         }
 
         return WolverineContinue.NoProblems;

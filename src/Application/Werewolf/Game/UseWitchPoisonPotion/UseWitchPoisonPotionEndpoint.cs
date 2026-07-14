@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -18,22 +19,22 @@ public static class UseWitchPoisonPotionEndpoint
     {
         foreach (var error in GameCommandSupport.ValidatePhase(state, GamePhase.Night))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         if (!state.IsAlive(command.PlayerId) || state.Players[command.PlayerId].Role != Role.Witch || state.CurrentNight.WitchDone)
         {
-            return new ProblemDetails { Title = "Witch action is not available." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Witch action is not available." };
         }
 
         if (state.Players[command.PlayerId].WitchPoisonPotionUsed)
         {
-            return new ProblemDetails { Title = "The poison potion has already been used." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "The poison potion has already been used." };
         }
 
         if (!state.IsAlive(command.TargetPlayerId))
         {
-            return new ProblemDetails { Title = "Poison target must be alive." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Poison target must be alive." };
         }
 
         return WolverineContinue.NoProblems;

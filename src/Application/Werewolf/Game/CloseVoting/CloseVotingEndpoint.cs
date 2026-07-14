@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -17,12 +18,12 @@ public static class CloseVotingEndpoint
     {
         foreach (var error in GameCommandSupport.ValidatePhase(state, GamePhase.DayVoting))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         foreach (var error in GameCommandSupport.ValidateHost(state, command.RequestedBy))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         return WolverineContinue.NoProblems;

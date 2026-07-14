@@ -40,7 +40,7 @@ public static class CritterConfiguration
                 // In integration tests we align Critter's dev environment name to the test env
                 // so auto-create and behavior mirrors local dev but remains isolated.
                 // This prevents test runs from using non-test dev conventions.
-                if (webApplication.Environment.IsIntegrationTests())
+                if (webApplication.Environment.IsIntegrationOrDevelopment())
                 {
                     x.DevelopmentEnvironmentName = webApplication.Environment.EnvironmentName;
                 }
@@ -49,6 +49,7 @@ public static class CritterConfiguration
                 // Dev: allow automatic creation of database objects and runtime code-gen.
                 // Use AutoCreate.All only in safe environments to prevent accidental schema drift.
                 x.Development.ResourceAutoCreate = AutoCreate.All;
+                x.Development.GeneratedCodeMode = TypeLoadMode.Dynamic;
 
                 // Prod: use pre-generated code and enforce schema creation policy.
                 // Static code mode removes dynamic codegen at runtime for faster startup and safety.
@@ -105,6 +106,9 @@ public static class CritterConfiguration
                     x.PublishEvent<PlayerDied>();
                     x.PublishEvent<PlayerLynched>();
                     x.PublishEvent<SeerInspectionPerformed>();
+                    x.PublishEvent<WerewolfVoteCast>();
+                    x.PublishEvent<WerewolfTargetLocked>();
+                    x.PublishEvent<VoteCast>();
                     x.PublishEvent<GameEnded>();
                 })
                 // InitializeWith ensures configured schemas and features are bootstrapped at startup.

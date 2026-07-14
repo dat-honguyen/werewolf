@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -18,7 +19,7 @@ public static class JoinLobbyEndpoint
     {
         foreach (var error in LobbyCommandSupport.ValidateOpen(state))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         return WolverineContinue.NoProblems;

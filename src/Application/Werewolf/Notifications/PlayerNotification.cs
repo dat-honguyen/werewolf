@@ -1,6 +1,7 @@
 using Application.Werewolf.Domain;
 using Application.Werewolf.Game;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Wolverine.SignalR;
 
@@ -52,7 +53,7 @@ public static class GameEventToNotificationHandler
     public static SignalRMessage<PlayerNotification> Handle(GameStarted @event) =>
         PlayerNotification.Broadcast(@event.RoomCode, "game.started", new { @event.GameId }).ToWebSocketDestination();
 
-    public static SignalRMessage<PlayerNotification> Handle(PlayerDied @event, [ReadAggregate] GameState state) =>
+    public static SignalRMessage<PlayerNotification> Handle(PlayerDied @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "player.died", new
         {
             @event.PlayerId,
@@ -60,30 +61,57 @@ public static class GameEventToNotificationHandler
             Role = state.Settings.RevealRoleOnDeath ? state.Players[@event.PlayerId].Role : (Role?)null
         }).ToWebSocketDestination();
 
-    public static SignalRMessage<PlayerNotification> Handle(PlayerLynched @event, [ReadAggregate] GameState state) =>
+    public static SignalRMessage<PlayerNotification> Handle(PlayerLynched @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "player.lynched", new
         {
             @event.PlayerId,
             Role = state.Settings.RevealRoleOnDeath ? state.Players[@event.PlayerId].Role : (Role?)null
         }).ToWebSocketDestination();
 
-    public static SignalRMessage<PlayerNotification> Handle(SeerInspectionPerformed @event, [ReadAggregate] GameState state) =>
+    public static SignalRMessage<PlayerNotification> Handle(SeerInspectionPerformed @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.ToPlayer(
             state.RoomCode,
             @event.SeerPlayerId,
             "seer.result",
-            new { @event.TargetPlayerId, @event.ObservedRole }).ToWebSocketDestination();
+            new { @event.TargetPlayerId, @event.IsWerewolf }).ToWebSocketDestination();
 
-    public static SignalRMessage<PlayerNotification> Handle(DayStarted @event, [ReadAggregate] GameState state) =>
+    /// <summary>
+    /// Private to the werewolf pack: every living werewolf sees every other werewolf's vote as it's
+    /// cast, so they can coordinate before the target locks in.
+    /// </summary>
+    public static IEnumerable<object> Handle(WerewolfVoteCast @event, [ReadAggregate("GameId")] GameState state) =>
+        NightChecklist.AlivePlayersWithRole(state, Role.Werewolf)
+            .Select(wolfId => PlayerNotification.ToPlayer(
+                state.RoomCode,
+                wolfId,
+                "werewolf.vote",
+                new { @event.WolfPlayerId, @event.TargetPlayerId }).ToWebSocketDestination());
+
+    /// <summary>
+    /// Private to the werewolf pack: tells every living werewolf once the kill target (or no-kill)
+    /// has locked in for the night.
+    /// </summary>
+    public static IEnumerable<object> Handle(WerewolfTargetLocked @event, [ReadAggregate("GameId")] GameState state) =>
+        NightChecklist.AlivePlayersWithRole(state, Role.Werewolf)
+            .Select(wolfId => PlayerNotification.ToPlayer(
+                state.RoomCode,
+                wolfId,
+                "werewolf.locked",
+                new { @event.TargetPlayerId }).ToWebSocketDestination());
+
+    public static SignalRMessage<PlayerNotification> Handle(VoteCast @event, [ReadAggregate("GameId")] GameState state) =>
+        PlayerNotification.Broadcast(state.RoomCode, "vote.cast", new { @event.VoterPlayerId, @event.TargetPlayerId }).ToWebSocketDestination();
+
+    public static SignalRMessage<PlayerNotification> Handle(DayStarted @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "day.started", new { @event.DayNumber }).ToWebSocketDestination();
 
-    public static SignalRMessage<PlayerNotification> Handle(NightStarted @event, [ReadAggregate] GameState state) =>
+    public static SignalRMessage<PlayerNotification> Handle(NightStarted @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "night.started", new { @event.NightNumber }).ToWebSocketDestination();
 
-    public static SignalRMessage<PlayerNotification> Handle(VotingStarted @event, [ReadAggregate] GameState state) =>
+    public static SignalRMessage<PlayerNotification> Handle(VotingStarted @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "voting.started").ToWebSocketDestination();
 
-    public static SignalRMessage<PlayerNotification> Handle(GameEnded @event, [ReadAggregate] GameState state) =>
+    public static SignalRMessage<PlayerNotification> Handle(GameEnded @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "game.ended", new
         {
             @event.WinningFaction,

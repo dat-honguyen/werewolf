@@ -33,6 +33,12 @@ public class GameState
 
     public GameResult? Result { get; set; }
 
+    /// <summary>
+    /// Who the Doctor protected last night, tracked outside <see cref="CurrentNight"/> (which resets
+    /// every <see cref="Apply(NightStarted)"/>) so the same target can be blocked two nights in a row.
+    /// </summary>
+    public Guid? LastDoctorProtectedTarget { get; set; }
+
     [NaturalKeySource]
     public void Apply(GameStarted @event)
     {
@@ -77,12 +83,14 @@ public class GameState
     public void Apply(WerewolfTargetLocked @event)
     {
         CurrentNight.WerewolfLockedTarget = @event.TargetPlayerId;
+        CurrentNight.WerewolfLocked = true;
     }
 
     public void Apply(DoctorProtectionChosen @event)
     {
         CurrentNight.DoctorProtectedTarget = @event.ProtectedPlayerId;
         CurrentNight.DoctorDone = true;
+        LastDoctorProtectedTarget = @event.ProtectedPlayerId;
     }
 
     public void Apply(SeerInspectionPerformed @event)
@@ -198,8 +206,9 @@ public record GamePlayer
 public class NightActionsState
 {
     public bool CupidDone { get; set; }
-    public Dictionary<Guid, Guid> WerewolfVotes { get; set; } = new();
+    public Dictionary<Guid, Guid?> WerewolfVotes { get; set; } = new();
     public Guid? WerewolfLockedTarget { get; set; }
+    public bool WerewolfLocked { get; set; }
     public bool DoctorDone { get; set; }
     public Guid? DoctorProtectedTarget { get; set; }
     public bool SeerDone { get; set; }

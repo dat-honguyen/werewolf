@@ -11,21 +11,6 @@ internal static class LobbyCommandSupport
 {
     internal const int MaxRoomCodeAttempts = 20;
 
-    internal static async Task<IEventStream<LobbyState>> LoadLobbyStream(
-        IDocumentSession session,
-        RoomCode roomCode,
-        CancellationToken cancellationToken)
-    {
-        var stream = await session.Events.FetchForWriting<LobbyState, RoomCode>(roomCode, cancellationToken);
-
-        if (stream.Aggregate is null)
-        {
-            throw new InvalidOperationException($"Lobby '{roomCode.Value}' does not exist.");
-        }
-
-        return stream;
-    }
-
     internal static IEnumerable<string> ValidateOpen(LobbyState state)
     {
         if (state.Status != LobbyStatus.Open)

@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -17,12 +18,12 @@ public static class AdvanceToVotingEndpoint
     {
         foreach (var error in GameCommandSupport.ValidatePhase(state, GamePhase.DayDiscussion))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         foreach (var error in GameCommandSupport.ValidateHost(state, command.RequestedBy))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         return WolverineContinue.NoProblems;
@@ -30,5 +31,5 @@ public static class AdvanceToVotingEndpoint
 
     [WolverinePost("/api/v1/game/voting/advance")]
     public static Events Handle(AdvanceToVoting command, [WriteAggregate("RoomCode")] GameState state) =>
-        [new VotingStarted { StartedAtUtc = DateTime.UtcNow }];
+        [new VotingStarted { GameId = state.Id, StartedAtUtc = DateTime.UtcNow }];
 }

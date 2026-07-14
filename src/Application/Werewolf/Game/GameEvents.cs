@@ -20,6 +20,7 @@ public record RolesAssigned
 
 public record NightStarted
 {
+    public required Guid GameId { get; init; }
     public required int NightNumber { get; init; }
     public required DateTime StartedAtUtc { get; init; }
 }
@@ -33,13 +34,15 @@ public record CupidPairedLovers
 
 public record WerewolfVoteCast
 {
+    public required Guid GameId { get; init; }
     public required Guid WolfPlayerId { get; init; }
-    public required Guid TargetPlayerId { get; init; }
+    public Guid? TargetPlayerId { get; init; }
 }
 
 public record WerewolfTargetLocked
 {
-    public required Guid TargetPlayerId { get; init; }
+    public required Guid GameId { get; init; }
+    public Guid? TargetPlayerId { get; init; }
 }
 
 public record DoctorProtectionChosen
@@ -50,9 +53,10 @@ public record DoctorProtectionChosen
 
 public record SeerInspectionPerformed
 {
+    public required Guid GameId { get; init; }
     public required Guid SeerPlayerId { get; init; }
     public required Guid TargetPlayerId { get; init; }
-    public required Role ObservedRole { get; init; }
+    public required bool IsWerewolf { get; init; }
 }
 
 public record WitchHealUsed
@@ -94,17 +98,20 @@ public record HunterRevengeDeclined
 
 public record DayStarted
 {
+    public required Guid GameId { get; init; }
     public required int DayNumber { get; init; }
     public required DateTime StartedAtUtc { get; init; }
 }
 
 public record VotingStarted
 {
+    public required Guid GameId { get; init; }
     public required DateTime StartedAtUtc { get; init; }
 }
 
 public record VoteCast
 {
+    public required Guid GameId { get; init; }
     public required Guid VoterPlayerId { get; init; }
     public Guid? TargetPlayerId { get; init; }
 }
@@ -123,17 +130,20 @@ public record NoLynchOccurred;
 
 public record PlayerLynched
 {
+    public required Guid GameId { get; init; }
     public required Guid PlayerId { get; init; }
 }
 
 public record PlayerDied
 {
+    public required Guid GameId { get; init; }
     public required Guid PlayerId { get; init; }
     public required string Cause { get; init; }
 }
 
 public record GameEnded
 {
+    public required Guid GameId { get; init; }
     public required WinningFaction WinningFaction { get; init; }
     public required DateTime EndedAtUtc { get; init; }
 }

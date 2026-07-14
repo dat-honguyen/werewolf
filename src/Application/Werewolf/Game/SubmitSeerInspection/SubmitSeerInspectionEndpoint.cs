@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -18,17 +19,17 @@ public static class SubmitSeerInspectionEndpoint
     {
         foreach (var error in GameCommandSupport.ValidatePhase(state, GamePhase.Night))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         if (!state.IsAlive(command.PlayerId) || state.Players[command.PlayerId].Role != Role.Seer || state.CurrentNight.SeerDone)
         {
-            return new ProblemDetails { Title = "Seer action is not available." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Seer action is not available." };
         }
 
         if (command.TargetPlayerId == command.PlayerId || !state.IsAlive(command.TargetPlayerId))
         {
-            return new ProblemDetails { Title = "Seer target must be a different living player." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Seer target must be a different living player." };
         }
 
         return WolverineContinue.NoProblems;
@@ -41,9 +42,10 @@ public static class SubmitSeerInspectionEndpoint
         [
             new SeerInspectionPerformed
             {
+                GameId = state.Id,
                 SeerPlayerId = command.PlayerId,
                 TargetPlayerId = command.TargetPlayerId,
-                ObservedRole = state.Players[command.TargetPlayerId].Role
+                IsWerewolf = state.Players[command.TargetPlayerId].Role == Role.Werewolf
             }
         ];
     }

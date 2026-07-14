@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -18,22 +19,27 @@ public static class SubmitDoctorProtectionEndpoint
     {
         foreach (var error in GameCommandSupport.ValidatePhase(state, GamePhase.Night))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         if (!state.IsAlive(command.PlayerId) || state.Players[command.PlayerId].Role != Role.Doctor || state.CurrentNight.DoctorDone)
         {
-            return new ProblemDetails { Title = "Doctor action is not available." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Doctor action is not available." };
         }
 
         if (!state.IsAlive(command.TargetPlayerId))
         {
-            return new ProblemDetails { Title = "Doctor target must be alive." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Doctor target must be alive." };
         }
 
         if (command.TargetPlayerId == command.PlayerId && !state.Settings.DoctorCanSelfProtect)
         {
-            return new ProblemDetails { Title = "Doctor cannot protect themselves." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Doctor cannot protect themselves." };
+        }
+
+        if (command.TargetPlayerId == state.LastDoctorProtectedTarget)
+        {
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Doctor cannot protect the same player two nights in a row." };
         }
 
         return WolverineContinue.NoProblems;

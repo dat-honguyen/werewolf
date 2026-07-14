@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -18,17 +19,17 @@ public static class KickPlayerEndpoint
     {
         foreach (var error in LobbyCommandSupport.ValidateOpen(state))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         foreach (var error in LobbyCommandSupport.ValidateHost(state, command.RequestedBy))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         if (command.PlayerId == state.HostPlayerId)
         {
-            return new ProblemDetails { Title = "Host cannot kick themselves." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Host cannot kick themselves." };
         }
 
         return WolverineContinue.NoProblems;

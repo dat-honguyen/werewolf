@@ -8,21 +8,6 @@ namespace Application.Werewolf.Game;
 
 public static class GameCommandSupport
 {
-    internal static async Task<IEventStream<GameState>> LoadGameStream(
-        IDocumentSession session,
-        RoomCode roomCode,
-        CancellationToken cancellationToken)
-    {
-        var stream = await session.Events.FetchForWriting<GameState, RoomCode>(roomCode, cancellationToken);
-
-        if (stream.Aggregate is null)
-        {
-            throw new InvalidOperationException($"Game for room '{roomCode.Value}' does not exist.");
-        }
-
-        return stream;
-    }
-
     internal static IEnumerable<string> ValidatePhase(GameState state, GamePhase phase)
     {
         if (state.Phase != phase)
@@ -90,7 +75,7 @@ public static class GameCommandSupport
 
         foreach (var playerId in resolution.DeadPlayers)
         {
-            events += new PlayerDied { PlayerId = playerId, Cause = "night" };
+            events += new PlayerDied { GameId = state.Id, PlayerId = playerId, Cause = "night" };
         }
 
         foreach (var hunterId in resolution.PendingHunterRevenge)
@@ -122,19 +107,28 @@ public static class GameCommandSupport
         if (voted.Count == 0 || (voted.Count > 1 && voted[0].Count == voted[1].Count))
         {
             events += new NoLynchOccurred();
-            events += new NightStarted { NightNumber = state.NightNumber + 1, StartedAtUtc = DateTime.UtcNow };
+            events += new NightStarted { GameId = state.Id, NightNumber = state.NightNumber + 1, StartedAtUtc = DateTime.UtcNow };
             return events;
         }
 
         var lynchTarget = voted[0].PlayerId;
         events += new LynchTargetDetermined { TargetPlayerId = lynchTarget };
-        events += new PlayerLynched { PlayerId = lynchTarget };
-        events += new PlayerDied { PlayerId = lynchTarget, Cause = "lynch" };
+        events += new PlayerLynched { GameId = state.Id, PlayerId = lynchTarget };
+        events += new PlayerDied { GameId = state.Id, PlayerId = lynchTarget, Cause = "lynch" };
+
+        // The Tanner wins alone, immediately, by getting themself lynched -- this pre-empts every
+        // other win condition and the usual hunter-revenge pause, even if the lynch also triggers a
+        // lover-link chain death or the Tanner happened to also be paired as a lover.
+        if (state.Players[lynchTarget].Role == Role.Tanner)
+        {
+            events += new GameEnded { GameId = state.Id, WinningFaction = WinningFaction.Tanner, EndedAtUtc = DateTime.UtcNow };
+            return events;
+        }
 
         var deaths = DeathResolver.Resolve(state, [lynchTarget]);
         foreach (var linked in deaths.DeadPlayers.Where(x => x != lynchTarget))
         {
-            events += new PlayerDied { PlayerId = linked, Cause = "lover-link" };
+            events += new PlayerDied { GameId = state.Id, PlayerId = linked, Cause = "lover-link" };
         }
 
         foreach (var hunterId in deaths.PendingHunterRevenge)
@@ -164,6 +158,7 @@ public static class GameCommandSupport
         {
             events += new PlayerDied
             {
+                GameId = state.Id,
                 PlayerId = playerId,
                 Cause = playerId == targetPlayerId ? "hunter-revenge" : "lover-link"
             };
@@ -218,17 +213,17 @@ public static class GameCommandSupport
         var winner = WinConditionEvaluator.Evaluate(state, newlyDead);
         if (winner.HasValue)
         {
-            events += new GameEnded { WinningFaction = winner.Value, EndedAtUtc = DateTime.UtcNow };
+            events += new GameEnded { GameId = state.Id, WinningFaction = winner.Value, EndedAtUtc = DateTime.UtcNow };
             return events;
         }
 
         if (pausedPhase == GamePhase.Night)
         {
-            events += new DayStarted { DayNumber = state.DayNumber + 1, StartedAtUtc = DateTime.UtcNow };
+            events += new DayStarted { GameId = state.Id, DayNumber = state.DayNumber + 1, StartedAtUtc = DateTime.UtcNow };
         }
         else if (pausedPhase == GamePhase.DayResolution)
         {
-            events += new NightStarted { NightNumber = state.NightNumber + 1, StartedAtUtc = DateTime.UtcNow };
+            events += new NightStarted { GameId = state.Id, NightNumber = state.NightNumber + 1, StartedAtUtc = DateTime.UtcNow };
         }
 
         return events;

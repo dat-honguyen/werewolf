@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading;
@@ -18,12 +19,12 @@ public static class SetReadyEndpoint
     {
         foreach (var error in LobbyCommandSupport.ValidateOpen(state))
         {
-            return new ProblemDetails { Title = error };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
         }
 
         if (!state.Players.ContainsKey(command.PlayerId))
         {
-            return new ProblemDetails { Title = "Player is not in the lobby." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Player is not in the lobby." };
         }
 
         return WolverineContinue.NoProblems;

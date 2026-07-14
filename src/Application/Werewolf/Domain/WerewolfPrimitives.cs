@@ -15,7 +15,8 @@ public enum Role
     Doctor = 3,
     Hunter = 4,
     Witch = 5,
-    Cupid = 6
+    Cupid = 6,
+    Tanner = 7
 }
 
 public enum LobbyStatus
@@ -40,7 +41,8 @@ public enum WinningFaction
 {
     Villagers = 0,
     Werewolves = 1,
-    Lovers = 2
+    Lovers = 2,
+    Tanner = 3
 }
 
 public record GameSettings
@@ -48,6 +50,8 @@ public record GameSettings
     public required bool RevealRoleOnDeath { get; init; }
     public required bool DoctorCanSelfProtect { get; init; }
     public required bool WerewolfRequiresConsensus { get; init; }
+    public required bool WerewolfCanTargetWerewolf { get; init; }
+    public required bool WerewolfCanVoteNoKill { get; init; }
     public required bool WitchSinglePotionPerNight { get; init; }
     public required int MinPlayers { get; init; }
     public required bool AllowForceStart { get; init; }
@@ -57,6 +61,8 @@ public record GameSettings
         RevealRoleOnDeath = true,
         DoctorCanSelfProtect = false,
         WerewolfRequiresConsensus = true,
+        WerewolfCanTargetWerewolf = false,
+        WerewolfCanVoteNoKill = false,
         WitchSinglePotionPerNight = true,
         MinPlayers = 5,
         AllowForceStart = false
@@ -74,7 +80,7 @@ public record GameSettings
 }
 
 [JsonConverter(typeof(RoomCodeJsonConverter))]
-public readonly record struct RoomCode(string Value)
+public readonly record struct RoomCode(string Value) : IParsable<RoomCode>
 {
     private const int RequiredLength = 6;
 
@@ -112,6 +118,20 @@ public readonly record struct RoomCode(string Value)
     }
 
     public static string Normalize(string value) => value.Trim().ToUpperInvariant();
+
+    public static RoomCode Parse(string s, IFormatProvider? provider) => From(s);
+
+    public static bool TryParse(string? s, IFormatProvider? provider, out RoomCode result)
+    {
+        if (s is not null && Normalize(s).Length == RequiredLength && Normalize(s).All(AllowedChars.Contains))
+        {
+            result = new RoomCode(Normalize(s));
+            return true;
+        }
+
+        result = default;
+        return false;
+    }
 
     public override string ToString() => Value;
 }

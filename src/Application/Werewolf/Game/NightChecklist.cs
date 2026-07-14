@@ -21,7 +21,7 @@ public static class NightChecklist
         var hasAliveWitch = HasAliveRole(state, Role.Witch);
 
         var cupidDone = state.NightNumber > 1 || !hasAliveCupid || state.CurrentNight.CupidDone || state.Lovers is not null;
-        var wolvesDone = !hasAliveWolves || state.CurrentNight.WerewolfLockedTarget is not null;
+        var wolvesDone = !hasAliveWolves || state.CurrentNight.WerewolfLocked;
         var doctorDone = !hasAliveDoctor || state.CurrentNight.DoctorDone;
         var seerDone = !hasAliveSeer || state.CurrentNight.SeerDone;
         var witchDone = !hasAliveWitch || state.CurrentNight.WitchDone;
