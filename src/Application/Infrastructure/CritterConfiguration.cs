@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json.Serialization;
 using Application.Werewolf;
 using Application.Werewolf.Game;
+using Application.Werewolf.Lobby;
 using Weasel.Core;
 using Wolverine.ErrorHandling;
 using Wolverine.FluentValidation;
@@ -110,6 +111,17 @@ public static class CritterConfiguration
                     x.PublishEvent<WerewolfTargetLocked>();
                     x.PublishEvent<VoteCast>();
                     x.PublishEvent<GameEnded>();
+                    // Lobby-side changes — see LobbyEventToNotificationHandler; all collapse to a
+                    // single "lobby.updated" push since clients re-fetch full state via GET.
+                    x.PublishEvent<PlayerJoinedLobby>();
+                    x.PublishEvent<PlayerLeftLobby>();
+                    x.PublishEvent<PlayerKickedFromLobby>();
+                    x.PublishEvent<HostTransferred>();
+                    x.PublishEvent<PlayerReadyStatusChanged>();
+                    x.PublishEvent<RoleDistributionUpdated>();
+                    x.PublishEvent<GameSettingsUpdated>();
+                    x.PublishEvent<LobbyCancelled>();
+                    x.PublishEvent<LobbyClosed>();
                 })
                 // InitializeWith ensures configured schemas and features are bootstrapped at startup.
                 .InitializeWith();
