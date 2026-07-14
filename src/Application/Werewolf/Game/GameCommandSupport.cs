@@ -32,6 +32,20 @@ public static class GameCommandSupport
         }
     }
 
+    /// <summary>
+    /// Enforces the fixed night role order (<see cref="NightRoleStep"/>): rejects the command unless
+    /// it's currently this exact step's turn, so e.g. the Doctor can't act before the Werewolves have
+    /// locked a target, or the Witch before the Seer has gone.
+    /// </summary>
+    internal static IEnumerable<string> ValidateNightTurn(GameState state, NightRoleStep expectedStep)
+    {
+        var currentStep = NightChecklist.CurrentStep(state);
+        if (currentStep != expectedStep)
+        {
+            yield return $"It is not this role's turn yet (current turn: {currentStep}).";
+        }
+    }
+
     internal static bool AllAliveVoted(GameState state) =>
         state.AlivePlayers().All(id => state.CurrentVote.Votes.ContainsKey(id));
 

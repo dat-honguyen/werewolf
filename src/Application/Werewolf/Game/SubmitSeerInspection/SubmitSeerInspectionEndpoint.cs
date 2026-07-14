@@ -27,6 +27,11 @@ public static class SubmitSeerInspectionEndpoint
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Seer action is not available." };
         }
 
+        foreach (var error in GameCommandSupport.ValidateNightTurn(state, NightRoleStep.Seer))
+        {
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
+        }
+
         if (command.TargetPlayerId == command.PlayerId || !state.IsAlive(command.TargetPlayerId))
         {
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Seer target must be a different living player." };

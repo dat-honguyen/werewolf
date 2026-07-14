@@ -56,6 +56,12 @@ public record GameSettings
     public required int MinPlayers { get; init; }
     public required bool AllowForceStart { get; init; }
 
+    /// <summary>
+    /// If true, the Witch is told which player the werewolves locked onto before she decides whether
+    /// to heal/poison/pass (the classic tabletop rule). If false, she must decide blind.
+    /// </summary>
+    public required bool WitchKnowsWerewolfTarget { get; init; }
+
     public static GameSettings Default() => new()
     {
         RevealRoleOnDeath = true,
@@ -65,7 +71,8 @@ public record GameSettings
         WerewolfCanVoteNoKill = false,
         WitchSinglePotionPerNight = false,
         MinPlayers = 5,
-        AllowForceStart = false
+        AllowForceStart = false,
+        WitchKnowsWerewolfTarget = true
     };
 
     public static Dictionary<Role, int> DefaultRoleDistribution() => new()
@@ -75,7 +82,7 @@ public record GameSettings
         [Role.Doctor] = 1,
         [Role.Witch] = 1,
         [Role.Hunter] = 1,
-        [Role.Cupid] = 1
+        [Role.Cupid] = 0
     };
 }
 

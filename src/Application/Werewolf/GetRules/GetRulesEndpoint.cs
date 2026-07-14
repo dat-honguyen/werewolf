@@ -51,11 +51,12 @@ public static class GetRulesEndpoint
     private static readonly List<string> NightActionOrder =
     [
         "Cupid pairs two lovers (first night only, before any other action)",
-        "Werewolves vote on a kill target; by default a target is mandatory and another werewolf can never be targeted, but WerewolfCanVoteNoKill/WerewolfCanTargetWerewolf can relax either rule (locks in once every living werewolf has voted, and every living werewolf privately sees each vote as it's cast)",
+        "Werewolves vote on a kill target; by default a target is mandatory and another werewolf can never be targeted, but WerewolfCanVoteNoKill/WerewolfCanTargetWerewolf can relax either rule (locks in once every living werewolf has voted). Living werewolves poll GET /api/v1/game/{roomCode}/werewolf/votes over HTTP (not SignalR) to see each other's votes and the lock as it happens",
         "Doctor protects one living player (never the same target as the immediately preceding night)",
         "Seer inspects one living player and learns only whether that player is a werewolf or not",
-        "Witch heals the werewolves' locked target and/or poisons any living player, or passes",
-        "Once every living night role has acted, the night resolves: the werewolf kill applies unless the target was healed or protected, the witch's poison target (if any) also dies, and any lover-link or Hunter-revenge chain deaths cascade from there"
+        "Witch heals the werewolves' locked target and/or poisons any living player, or passes. If WitchKnowsWerewolfTarget is on, she can call GET /api/v1/game/{roomCode}/witch/target first to learn who the werewolves locked onto before deciding",
+        "Once every living night role has acted, the night resolves: the werewolf kill applies unless the target was healed or protected, the witch's poison target (if any) also dies, and any lover-link or Hunter-revenge chain deaths cascade from there",
+        "This order is strictly enforced server-side: a role's Submit/Use/Pass endpoint rejects the call with 400 unless it is actually that role's turn (e.g. the Doctor can't act before the Werewolves have locked a target). Each transition also pushes a room-wide 'night.narration' SignalR broadcast (flavor text, never names a player) plus a private 'night.turn' push to whichever living player(s) hold the next role"
     ];
 
     private static readonly List<string> WinConditions =
@@ -69,13 +70,14 @@ public static class GetRulesEndpoint
     private static readonly List<SettingInfo> Settings =
     [
         new() { Name = "RevealRoleOnDeath", Default = "true", Description = "Whether a dead player's role is broadcast in live SignalR death notifications. Note: the debug GET game-state/log endpoints always show every role regardless of this setting." },
-        new() { Name = "DoctorCanSelfProtect", Default = "false", Description = "Whether the Doctor may choose themselves as the night's protection target." },
+        new() { Name = "DoctorCanSelfProtect", Default = "true", Description = "Whether the Doctor may choose themselves as the night's protection target." },
         new() { Name = "WerewolfRequiresConsensus", Default = "true", Description = "If true, the werewolves' kill target only locks in when every living werewolf votes for the same player. If false, once all have voted, the target with the most votes locks in (ties broken by vote order)." },
         new() { Name = "WerewolfCanTargetWerewolf", Default = "false", Description = "If true, werewolves may vote to kill a fellow living werewolf (never themselves). If false (default), only non-werewolves are valid vote targets." },
         new() { Name = "WerewolfCanVoteNoKill", Default = "false", Description = "If true, a werewolf may cast a no-kill vote (omit the target) instead of naming a victim; if every/most werewolf votes lock in on no-kill, the pack kills no one that night. If false (default), a target is mandatory." },
         new() { Name = "WitchSinglePotionPerNight", Default = "true", Description = "If true, using either potion ends the Witch's turn for the night. If false, the Witch may use both the heal and poison potion on the same night." },
         new() { Name = "MinPlayers", Default = "5", Description = "Minimum number of joined players required to start the game." },
-        new() { Name = "AllowForceStart", Default = "false", Description = "If true, the host may start the game before every player is marked ready." }
+        new() { Name = "AllowForceStart", Default = "false", Description = "If true, the host may start the game before every player is marked ready." },
+        new() { Name = "WitchKnowsWerewolfTarget", Default = "true", Description = "If true (the classic tabletop rule), the Witch can call GET /api/v1/game/{roomCode}/witch/target to learn who the werewolves locked onto before deciding whether to heal/poison/pass. If false, she decides blind." }
     ];
 
     [WolverineGet("/api/v1/rules")]

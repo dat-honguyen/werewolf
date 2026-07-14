@@ -29,6 +29,11 @@ public static class SubmitWerewolfVoteEndpoint
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Only living werewolves can vote." };
         }
 
+        foreach (var error in GameCommandSupport.ValidateNightTurn(state, NightRoleStep.Werewolves))
+        {
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
+        }
+
         if (command.TargetPlayerId is null)
         {
             if (!state.Settings.WerewolfCanVoteNoKill)

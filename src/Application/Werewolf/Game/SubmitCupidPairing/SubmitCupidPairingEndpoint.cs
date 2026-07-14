@@ -33,6 +33,11 @@ public static class SubmitCupidPairingEndpoint
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Cupid action is not available." };
         }
 
+        foreach (var error in GameCommandSupport.ValidateNightTurn(state, NightRoleStep.Cupid))
+        {
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
+        }
+
         if (command.FirstPlayerId == command.SecondPlayerId
             || !state.IsAlive(command.FirstPlayerId)
             || !state.IsAlive(command.SecondPlayerId))
@@ -45,5 +50,5 @@ public static class SubmitCupidPairingEndpoint
 
     [WolverinePost("/api/v1/game/cupid")]
     public static Events Handle(SubmitCupidPairing command, [WriteAggregate("RoomCode")] GameState state) =>
-        [new CupidPairedLovers { CupidPlayerId = command.PlayerId, FirstPlayerId = command.FirstPlayerId, SecondPlayerId = command.SecondPlayerId }];
+        [new CupidPairedLovers { GameId = state.Id, CupidPlayerId = command.PlayerId, FirstPlayerId = command.FirstPlayerId, SecondPlayerId = command.SecondPlayerId }];
 }

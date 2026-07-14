@@ -76,29 +76,12 @@ public static class GameEventToNotificationHandler
             "seer.result",
             new { @event.TargetPlayerId, @event.IsWerewolf }).ToWebSocketDestination();
 
-    /// <summary>
-    /// Private to the werewolf pack: every living werewolf sees every other werewolf's vote as it's
-    /// cast, so they can coordinate before the target locks in.
-    /// </summary>
-    public static IEnumerable<object> Handle(WerewolfVoteCast @event, [ReadAggregate("GameId")] GameState state) =>
-        NightChecklist.AlivePlayersWithRole(state, Role.Werewolf)
-            .Select(wolfId => PlayerNotification.ToPlayer(
-                state.RoomCode,
-                wolfId,
-                "werewolf.vote",
-                new { @event.WolfPlayerId, @event.TargetPlayerId }).ToWebSocketDestination());
-
-    /// <summary>
-    /// Private to the werewolf pack: tells every living werewolf once the kill target (or no-kill)
-    /// has locked in for the night.
-    /// </summary>
-    public static IEnumerable<object> Handle(WerewolfTargetLocked @event, [ReadAggregate("GameId")] GameState state) =>
-        NightChecklist.AlivePlayersWithRole(state, Role.Werewolf)
-            .Select(wolfId => PlayerNotification.ToPlayer(
-                state.RoomCode,
-                wolfId,
-                "werewolf.locked",
-                new { @event.TargetPlayerId }).ToWebSocketDestination());
+    // Werewolf pack coordination (who's voting for whom, whether the target has locked) is
+    // deliberately NOT pushed over SignalR: which player IDs are in the room's SignalR player-group
+    // fan-out is observable, and a live werewolf-only channel is one more surface that could leak
+    // pack membership. Living werewolves instead poll GetWerewolfVotesEndpoint
+    // (GET /api/v1/game/{roomCode}/werewolf/votes) over plain authenticated HTTP, which checks the
+    // caller is themselves a living werewolf before returning anything.
 
     public static SignalRMessage<PlayerNotification> Handle(VoteCast @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "vote.cast", new { @event.VoterPlayerId, @event.TargetPlayerId }).ToWebSocketDestination();
@@ -106,8 +89,56 @@ public static class GameEventToNotificationHandler
     public static SignalRMessage<PlayerNotification> Handle(DayStarted @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "day.started", new { @event.DayNumber }).ToWebSocketDestination();
 
-    public static SignalRMessage<PlayerNotification> Handle(NightStarted @event, [ReadAggregate("GameId")] GameState state) =>
-        PlayerNotification.Broadcast(state.RoomCode, "night.started", new { @event.NightNumber }).ToWebSocketDestination();
+    public static IEnumerable<object> Handle(NightStarted @event, [ReadAggregate("GameId")] GameState state) =>
+        new object[] { PlayerNotification.Broadcast(state.RoomCode, "night.started", new { @event.NightNumber }).ToWebSocketDestination() }
+            .Concat(NightTurnNotifications(state));
+
+    /// <summary>
+    /// The Werewolves' turn ends the moment their target locks (see <see cref="NightRoleStep"/>) —
+    /// this is where the narrator hands the night off to whichever role comes next (Doctor, per the
+    /// fixed order), rather than revealing the lock itself to non-wolves.
+    /// </summary>
+    public static IEnumerable<object> Handle(WerewolfTargetLocked @event, [ReadAggregate("GameId")] GameState state) =>
+        NightTurnNotifications(state);
+
+    public static IEnumerable<object> Handle(DoctorProtectionChosen @event, [ReadAggregate("GameId")] GameState state) =>
+        NightTurnNotifications(state);
+
+    public static IEnumerable<object> Handle(CupidPairedLovers @event, [ReadAggregate("GameId")] GameState state) =>
+        NightTurnNotifications(state);
+
+    public static IEnumerable<object> Handle(WitchHealUsed @event, [ReadAggregate("GameId")] GameState state) =>
+        NightTurnNotifications(state);
+
+    public static IEnumerable<object> Handle(WitchPoisonUsed @event, [ReadAggregate("GameId")] GameState state) =>
+        NightTurnNotifications(state);
+
+    public static IEnumerable<object> Handle(WitchPassed @event, [ReadAggregate("GameId")] GameState state) =>
+        NightTurnNotifications(state);
+
+    /// <summary>
+    /// Narrates whichever night role is up next per <see cref="NightRoleStep"/>: a room-wide
+    /// broadcast with flavor text that never names a player (so nobody's role leaks from the
+    /// broadcast alone), plus a private "it's your turn" push to whichever living player(s) actually
+    /// hold that role. Returns nothing once the checklist is complete (the death cascade narrates
+    /// itself via the usual PlayerDied/NightResolved events).
+    /// </summary>
+    private static IEnumerable<object> NightTurnNotifications(GameState state)
+    {
+        var step = NightChecklist.CurrentStep(state);
+        var role = NightNarrator.RoleFor(step);
+        if (role is null)
+        {
+            yield break;
+        }
+
+        yield return PlayerNotification.Broadcast(state.RoomCode, "night.narration", new { Step = step, Text = NightNarrator.Prompt(step) }).ToWebSocketDestination();
+
+        foreach (var playerId in NightChecklist.AlivePlayersWithRole(state, role.Value))
+        {
+            yield return PlayerNotification.ToPlayer(state.RoomCode, playerId, "night.turn", new { Role = role.Value, Prompt = NightNarrator.Prompt(step) }).ToWebSocketDestination();
+        }
+    }
 
     public static SignalRMessage<PlayerNotification> Handle(VotingStarted @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "voting.started").ToWebSocketDestination();

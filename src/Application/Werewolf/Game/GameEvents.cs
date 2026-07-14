@@ -27,6 +27,7 @@ public record NightStarted
 
 public record CupidPairedLovers
 {
+    public required Guid GameId { get; init; }
     public required Guid CupidPlayerId { get; init; }
     public required Guid FirstPlayerId { get; init; }
     public required Guid SecondPlayerId { get; init; }
@@ -47,6 +48,7 @@ public record WerewolfTargetLocked
 
 public record DoctorProtectionChosen
 {
+    public required Guid GameId { get; init; }
     public required Guid DoctorPlayerId { get; init; }
     public required Guid ProtectedPlayerId { get; init; }
 }
@@ -61,17 +63,20 @@ public record SeerInspectionPerformed
 
 public record WitchHealUsed
 {
+    public required Guid GameId { get; init; }
     public required Guid WitchPlayerId { get; init; }
 }
 
 public record WitchPoisonUsed
 {
+    public required Guid GameId { get; init; }
     public required Guid WitchPlayerId { get; init; }
     public required Guid TargetPlayerId { get; init; }
 }
 
 public record WitchPassed
 {
+    public required Guid GameId { get; init; }
     public required Guid WitchPlayerId { get; init; }
 }
 

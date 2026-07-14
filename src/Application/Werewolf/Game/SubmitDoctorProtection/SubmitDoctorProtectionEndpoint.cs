@@ -27,6 +27,11 @@ public static class SubmitDoctorProtectionEndpoint
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Doctor action is not available." };
         }
 
+        foreach (var error in GameCommandSupport.ValidateNightTurn(state, NightRoleStep.Doctor))
+        {
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
+        }
+
         if (!state.IsAlive(command.TargetPlayerId))
         {
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Doctor target must be alive." };
@@ -47,5 +52,5 @@ public static class SubmitDoctorProtectionEndpoint
 
     [WolverinePost("/api/v1/game/doctor/protect")]
     public static Events Handle(SubmitDoctorProtection command, [WriteAggregate("RoomCode")] GameState state) =>
-        [new DoctorProtectionChosen { DoctorPlayerId = command.PlayerId, ProtectedPlayerId = command.TargetPlayerId }];
+        [new DoctorProtectionChosen { GameId = state.Id, DoctorPlayerId = command.PlayerId, ProtectedPlayerId = command.TargetPlayerId }];
 }

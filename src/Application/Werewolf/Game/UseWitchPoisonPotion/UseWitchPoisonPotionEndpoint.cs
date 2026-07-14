@@ -27,6 +27,11 @@ public static class UseWitchPoisonPotionEndpoint
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Witch action is not available." };
         }
 
+        foreach (var error in GameCommandSupport.ValidateNightTurn(state, NightRoleStep.Witch))
+        {
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
+        }
+
         if (state.Players[command.PlayerId].WitchPoisonPotionUsed)
         {
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "The poison potion has already been used." };
@@ -42,5 +47,5 @@ public static class UseWitchPoisonPotionEndpoint
 
     [WolverinePost("/api/v1/game/witch/poison")]
     public static Events Handle(UseWitchPoisonPotion command, [WriteAggregate("RoomCode")] GameState state) =>
-        [new WitchPoisonUsed { WitchPlayerId = command.PlayerId, TargetPlayerId = command.TargetPlayerId }];
+        [new WitchPoisonUsed { GameId = state.Id, WitchPlayerId = command.PlayerId, TargetPlayerId = command.TargetPlayerId }];
 }

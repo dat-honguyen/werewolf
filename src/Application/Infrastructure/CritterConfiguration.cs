@@ -107,8 +107,12 @@ public static class CritterConfiguration
                     x.PublishEvent<PlayerDied>();
                     x.PublishEvent<PlayerLynched>();
                     x.PublishEvent<SeerInspectionPerformed>();
-                    x.PublishEvent<WerewolfVoteCast>();
                     x.PublishEvent<WerewolfTargetLocked>();
+                    x.PublishEvent<CupidPairedLovers>();
+                    x.PublishEvent<DoctorProtectionChosen>();
+                    x.PublishEvent<WitchHealUsed>();
+                    x.PublishEvent<WitchPoisonUsed>();
+                    x.PublishEvent<WitchPassed>();
                     x.PublishEvent<VoteCast>();
                     x.PublishEvent<GameEnded>();
                     // Lobby-side changes push via RoomLobbyViewProjection.RaiseSideEffects instead
@@ -154,6 +158,17 @@ public static class CritterConfiguration
                 opts.Policies.UseDurableLocalQueues();
                 // Auto-apply transactions ties message handling to Marten transaction scope.
                 opts.Policies.AutoApplyTransactions();
+
+                // GameFlowTriggerProjection can publish more than one of these for the same room in
+                // a single catch-up batch (e.g. Doctor/Seer/Witch acting in quick succession). Both
+                // messages route to the same shared local queue regardless of room, so with default
+                // parallelism two handler runs can race to FetchLatest + append against the same
+                // GameState stream -- the loser hits a Marten version conflict and gets dead-lettered.
+                // The handlers are idempotent no-ops when the checklist isn't actually complete, so
+                // serializing this one queue (app-wide, not per-room) is enough to remove the race
+                // with no correctness cost.
+                opts.LocalQueueFor<TryResolveNight>().Sequential();
+                opts.LocalQueueFor<TryCloseVoting>().Sequential();
 
                 // Ignore duplicate stream ID collisions to avoid poisoning the pipeline.
                 // This is safe when duplicate writes are an expected race and can be discarded.

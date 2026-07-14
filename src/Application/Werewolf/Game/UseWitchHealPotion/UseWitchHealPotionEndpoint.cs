@@ -28,6 +28,11 @@ public static class UseWitchHealPotionEndpoint
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Witch action is not available." };
         }
 
+        foreach (var error in GameCommandSupport.ValidateNightTurn(state, NightRoleStep.Witch))
+        {
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
+        }
+
         if (state.Players[command.PlayerId].WitchHealPotionUsed)
         {
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "The heal potion has already been used." };
@@ -45,6 +50,6 @@ public static class UseWitchHealPotionEndpoint
     public static Events Handle(UseWitchHealPotion command, [WriteAggregate("RoomCode")] GameState state)
     {
 
-        return [new WitchHealUsed { WitchPlayerId = command.PlayerId }];
+        return [new WitchHealUsed { GameId = state.Id, WitchPlayerId = command.PlayerId }];
     }
 }

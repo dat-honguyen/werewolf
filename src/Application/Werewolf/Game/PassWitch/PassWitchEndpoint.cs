@@ -26,10 +26,15 @@ public static class PassWitchEndpoint
             return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Witch action is not available." };
         }
 
+        foreach (var error in GameCommandSupport.ValidateNightTurn(state, NightRoleStep.Witch))
+        {
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = error };
+        }
+
         return WolverineContinue.NoProblems;
     }
 
     [WolverinePost("/api/v1/game/witch/pass")]
     public static Events Handle(PassWitch command, [WriteAggregate("RoomCode")] GameState state) =>
-        [new WitchPassed { WitchPlayerId = command.PlayerId }];
+        [new WitchPassed { GameId = state.Id, WitchPlayerId = command.PlayerId }];
 }
