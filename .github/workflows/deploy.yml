@@ -61,7 +61,7 @@ jobs:
               ("DB_CONN=$(aws ssm get-parameter --name /werewolf/prod/db-connection-string --with-decryption --query Parameter.Value --output text --region " + $region + ")"),
               "docker stop werewolf-api || true",
               "docker rm werewolf-api || true",
-              ("docker run -d --name werewolf-api --restart unless-stopped -p 80:8080 -e TDIL_ConnectionStrings__database=\"$DB_CONN\" " + $image),
+              ("docker run -d --name werewolf-api --restart unless-stopped -p 5000:8080 -e TDIL_ConnectionStrings__database=\"$DB_CONN\" " + $image),
               "docker image prune -f"
             ]')
 
