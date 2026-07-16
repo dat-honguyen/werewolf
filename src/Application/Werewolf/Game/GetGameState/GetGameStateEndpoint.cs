@@ -20,6 +20,14 @@ public record GameStateResponse
     public GameResult? Result { get; init; }
     public Role? CurrentNightRole { get; init; }
     public string? NightPrompt { get; init; }
+
+    /// <summary>
+    /// This aggregate's <see cref="GameState.Version"/> as of this read -- the "GetCurrentState()"
+    /// half of the version-gap resync pattern (see <see cref="Notifications.PlayerNotification.StateVersion"/>):
+    /// clients track the last version they've seen and call this endpoint whenever a SignalR
+    /// notification reports a newer one, rather than polling on a timer.
+    /// </summary>
+    public required long Version { get; init; }
 }
 
 public record GamePlayerDto
@@ -68,7 +76,8 @@ public static class GetGameStateEndpoint
             PendingHunterRevenge = state.PendingHunterRevenge.ToList(),
             Result = state.Result,
             CurrentNightRole = NightNarrator.RoleFor(nightStep),
-            NightPrompt = nightStep == NightRoleStep.Complete ? null : NightNarrator.Prompt(nightStep)
+            NightPrompt = nightStep == NightRoleStep.Complete ? null : NightNarrator.Prompt(nightStep),
+            Version = state.Version
         };
     }
 }
