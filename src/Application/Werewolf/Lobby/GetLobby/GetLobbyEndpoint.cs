@@ -15,6 +15,12 @@ public record LobbyStateResponse
     public required List<LobbyPlayerDto> Players { get; init; }
     public required GameSettings Settings { get; init; }
     public required Dictionary<Role, int> RoleDistribution { get; init; }
+
+    /// <summary>
+    /// This aggregate's <see cref="LobbyState.Version"/> as of this read -- same version-gap resync
+    /// pattern as <see cref="Game.GetGameState.GameStateResponse.Version"/>.
+    /// </summary>
+    public required long Version { get; init; }
 }
 
 public record LobbyPlayerDto
@@ -47,7 +53,8 @@ public static class GetLobbyEndpoint
                 .Select(p => new LobbyPlayerDto { PlayerId = p.PlayerId, DisplayName = p.DisplayName, IsReady = p.IsReady })
                 .ToList(),
             Settings = state.Settings,
-            RoleDistribution = state.RoleDistribution
+            RoleDistribution = state.RoleDistribution,
+            Version = state.Version
         };
     }
 }

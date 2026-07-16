@@ -179,10 +179,10 @@ public static class GameEventToNotificationHandler
 /// ran, and the raw command itself was pushed to clients, when this implemented that interface).
 /// Leaving it a plain message keeps it local-only so the handler always fires.
 /// </summary>
-public record NotifyRoomUpdated(RoomCode RoomCode);
+public record NotifyRoomUpdated(RoomCode RoomCode, long StateVersion);
 
 public static class RoomGroupNotificationHandler
 {
     public static SignalRMessage<PlayerNotification> Handle(NotifyRoomUpdated message) =>
-        PlayerNotification.Broadcast(message.RoomCode, "lobby.updated").ToWebSocketDestination();
+        PlayerNotification.Broadcast(message.RoomCode, "lobby.updated", stateVersion: message.StateVersion).ToWebSocketDestination();
 }
