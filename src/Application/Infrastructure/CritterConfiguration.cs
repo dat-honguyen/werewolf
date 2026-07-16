@@ -115,6 +115,14 @@ public static class CritterConfiguration
                     x.PublishEvent<WitchPassed>();
                     x.PublishEvent<VoteCast>();
                     x.PublishEvent<GameEnded>();
+                    // A Hunter's revenge turn pauses the Night/DayResolution -> next-phase
+                    // transition exactly like a night role's turn does, and needs the same
+                    // "whose turn is it" push -- all three drive HunterRevengeTurnNotification,
+                    // since the queue's head can change on any of them (a new Hunter queued, or
+                    // the current one resolving and revealing the next).
+                    x.PublishEvent<HunterRevengePending>();
+                    x.PublishEvent<HunterRevengeShotFired>();
+                    x.PublishEvent<HunterRevengeDeclined>();
                     // Lobby-side changes push via RoomLobbyViewProjection.RaiseSideEffects instead
                     // (same pattern as GameFlowTriggerProjection) — no separate subscription needed.
                 })
