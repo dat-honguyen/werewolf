@@ -62,6 +62,15 @@ public record GameSettings
     /// </summary>
     public required bool WitchKnowsWerewolfTarget { get; init; }
 
+    /// <summary>
+    /// How long the Day Discussion phase's client-side countdown runs for, in seconds. Purely a
+    /// shared clock -- the host still advances to Voting manually (see AdvanceToVotingEndpoint);
+    /// nothing here enforces a transition. Not `required`: this field was added after `GameSettings`
+    /// started being embedded in the already-persisted `GameStarted` event, so older events replayed
+    /// from the store won't carry it and must fall back to this default instead of throwing.
+    /// </summary>
+    public int DiscussionDurationSeconds { get; init; } = 120;
+
     public static GameSettings Default() => new()
     {
         RevealRoleOnDeath = true,
@@ -72,7 +81,8 @@ public record GameSettings
         WitchSinglePotionPerNight = false,
         MinPlayers = 5,
         AllowForceStart = false,
-        WitchKnowsWerewolfTarget = true
+        WitchKnowsWerewolfTarget = true,
+        DiscussionDurationSeconds = 120
     };
 
     public static Dictionary<Role, int> DefaultRoleDistribution() => new()
