@@ -18,6 +18,8 @@ public record GameStateResponse
     public required Guid? WerewolfLockedTarget { get; init; }
     public required List<Guid> PendingHunterRevenge { get; init; }
     public GameResult? Result { get; init; }
+    public Role? CurrentNightRole { get; init; }
+    public string? NightPrompt { get; init; }
 }
 
 public record GamePlayerDto
@@ -46,6 +48,12 @@ public static class GetGameStateEndpoint
             return null;
         }
 
+        // Exposed so clients can always resolve "whose turn is it right now" from a plain GET
+        // rather than relying solely on the transient night.turn/night.narration SignalR push --
+        // a client that wasn't subscribed yet when that event fired (e.g. still on the role-reveal
+        // screen) would otherwise have no way to catch up.
+        var nightStep = state.Phase == GamePhase.Night ? NightChecklist.CurrentStep(state) : NightRoleStep.Complete;
+
         return new GameStateResponse
         {
             RoomCode = state.RoomCode.Value,
@@ -58,7 +66,9 @@ public static class GetGameStateEndpoint
             Lovers = state.Lovers,
             WerewolfLockedTarget = state.CurrentNight.WerewolfLockedTarget,
             PendingHunterRevenge = state.PendingHunterRevenge.ToList(),
-            Result = state.Result
+            Result = state.Result,
+            CurrentNightRole = NightNarrator.RoleFor(nightStep),
+            NightPrompt = nightStep == NightRoleStep.Complete ? null : NightNarrator.Prompt(nightStep)
         };
     }
 }
