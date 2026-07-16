@@ -22,9 +22,17 @@ public class LobbyState
 
     public Dictionary<Role, int> RoleDistribution { get; set; } = GameSettings.DefaultRoleDistribution();
 
+    /// <summary>
+    /// Incremented by every <c>Apply</c> below, same pattern as <see cref="Game.GameState.Version"/>
+    /// -- a monotonic sequence number for the client version-gap resync (see GetLobbyEndpoint and
+    /// RoomLobbyViewProjection.RaiseSideEffects).
+    /// </summary>
+    public long Version { get; set; }
+
     [NaturalKeySource]
     public void Apply(LobbyCreated @event)
     {
+        Version++;
         Id = @event.LobbyId;
         RoomCode = @event.RoomCode;
         Status = LobbyStatus.Open;
@@ -39,6 +47,7 @@ public class LobbyState
 
     public void Apply(PlayerJoinedLobby @event)
     {
+        Version++;
         Players[@event.PlayerId] = new()
         {
             PlayerId = @event.PlayerId,
@@ -49,21 +58,25 @@ public class LobbyState
 
     public void Apply(PlayerLeftLobby @event)
     {
+        Version++;
         Players.Remove(@event.PlayerId);
     }
 
     public void Apply(PlayerKickedFromLobby @event)
     {
+        Version++;
         Players.Remove(@event.PlayerId);
     }
 
     public void Apply(HostTransferred @event)
     {
+        Version++;
         HostPlayerId = @event.NewHostPlayerId;
     }
 
     public void Apply(PlayerReadyStatusChanged @event)
     {
+        Version++;
         if (Players.TryGetValue(@event.PlayerId, out var player))
         {
             Players[@event.PlayerId] = player with { IsReady = @event.IsReady };
@@ -72,26 +85,31 @@ public class LobbyState
 
     public void Apply(RoleDistributionUpdated @event)
     {
+        Version++;
         RoleDistribution = @event.Distribution;
     }
 
     public void Apply(GameSettingsUpdated @event)
     {
+        Version++;
         Settings = @event.Settings;
     }
 
     public void Apply(GameStarting _)
     {
+        Version++;
         Status = LobbyStatus.Starting;
     }
 
     public void Apply(LobbyClosed _)
     {
+        Version++;
         Status = LobbyStatus.Closed;
     }
 
     public void Apply(LobbyCancelled _)
     {
+        Version++;
         Status = LobbyStatus.Cancelled;
     }
 

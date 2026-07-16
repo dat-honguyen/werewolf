@@ -141,7 +141,11 @@ public partial class RoomLobbyViewProjection : SingleStreamProjection<RoomLobbyV
                 case GameSettingsUpdated:
                 case LobbyCancelled:
                 case LobbyClosed:
-                    slice.PublishMessage(new NotifyRoomUpdated(view.RoomCode));
+                    // e.Version is Marten's own stream position for this event -- numerically the
+                    // same sequence LobbyState.Version counts up via its own Apply methods (both
+                    // process every event in this stream in the same order), so this lines up with
+                    // whatever GetLobbyEndpoint returns without an extra fetch here.
+                    slice.PublishMessage(new NotifyRoomUpdated(view.RoomCode, e.Version));
                     break;
             }
         }
