@@ -108,6 +108,9 @@ public partial class RoomLobbyViewProjection : SingleStreamProjection<RoomLobbyV
     public static RoomLobbyView Apply(IEvent<GameSettingsUpdated> @event, RoomLobbyView view) =>
         view with { Settings = @event.Data.Settings };
 
+    public static RoomLobbyView Apply(IEvent<GameStarting> _, RoomLobbyView view) =>
+        view with { Status = LobbyStatus.Starting };
+
     public static RoomLobbyView Apply(IEvent<LobbyClosed> _, RoomLobbyView view) =>
         view with { Status = LobbyStatus.Closed };
 
@@ -139,6 +142,7 @@ public partial class RoomLobbyViewProjection : SingleStreamProjection<RoomLobbyV
                 case PlayerReadyStatusChanged:
                 case RoleDistributionUpdated:
                 case GameSettingsUpdated:
+                case GameStarting:
                 case LobbyCancelled:
                 case LobbyClosed:
                     // e.Version is Marten's own stream position for this event -- numerically the

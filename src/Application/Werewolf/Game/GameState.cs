@@ -192,6 +192,20 @@ public class GameState
         Phase = GamePhase.DayResolution;
     }
 
+    // No other GameState field reflects the lynch target/no-lynch outcome itself (PlayerLynched
+    // carries the same target right after, and DeathResolver/GameCommandSupport work from the vote
+    // tally directly rather than reading this back) -- these exist purely so Version still counts
+    // every event actually folded from the stream, matching every other event's contract.
+    public void Apply(LynchTargetDetermined _)
+    {
+        Version++;
+    }
+
+    public void Apply(NoLynchOccurred _)
+    {
+        Version++;
+    }
+
     public void Apply(PlayerLynched _)
     {
         Version++;

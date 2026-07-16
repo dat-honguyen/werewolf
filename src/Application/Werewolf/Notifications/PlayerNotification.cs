@@ -164,6 +164,40 @@ public static class GameEventToNotificationHandler
         }
     }
 
+    /// <summary>
+    /// A Hunter's revenge turn pauses whichever phase transition was in progress exactly like a
+    /// night role's turn does (see NightTurnNotifications above) -- until this was added, the only
+    /// way a client learned "it's now waiting on the Hunter" was re-fetching GetGameStateEndpoint
+    /// and inspecting PendingHunterRevenge directly, with no push to trigger that re-fetch at all.
+    /// All three Hunter-revenge events drive this, since the queue's head can change on any of
+    /// them: a new Hunter queued (Pending), or the current one resolving and revealing the next
+    /// (ShotFired/Declined).
+    /// </summary>
+    public static IEnumerable<object> Handle(HunterRevengePending @event, [ReadAggregate("GameId")] GameState state) =>
+        HunterRevengeTurnNotification(state);
+
+    public static IEnumerable<object> Handle(HunterRevengeShotFired @event, [ReadAggregate("GameId")] GameState state) =>
+        HunterRevengeTurnNotification(state);
+
+    public static IEnumerable<object> Handle(HunterRevengeDeclined @event, [ReadAggregate("GameId")] GameState state) =>
+        HunterRevengeTurnNotification(state);
+
+    private static IEnumerable<object> HunterRevengeTurnNotification(GameState state)
+    {
+        if (state.PendingHunterRevenge.Count == 0)
+        {
+            // The queue just drained -- the phase transition it was pausing resumes via its own
+            // DayStarted/NightStarted/GameEnded event (each already notified above), so there's
+            // nothing further to push here.
+            yield break;
+        }
+
+        yield return PlayerNotification.Broadcast(state.RoomCode, "hunter.pending", stateVersion: state.Version).ToWebSocketDestination();
+
+        var hunterPlayerId = state.PendingHunterRevenge.Peek();
+        yield return PlayerNotification.ToPlayer(state.RoomCode, hunterPlayerId, "hunter.turn", stateVersion: state.Version).ToWebSocketDestination();
+    }
+
     public static SignalRMessage<PlayerNotification> Handle(VotingStarted @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "voting.started", stateVersion: state.Version).ToWebSocketDestination();
 
