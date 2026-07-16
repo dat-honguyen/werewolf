@@ -82,13 +82,23 @@ public static class GameEventToNotificationHandler
             Role = state.Settings.RevealRoleOnDeath ? state.Players[@event.PlayerId].Role : (Role?)null
         }, stateVersion: state.Version).ToWebSocketDestination();
 
-    public static SignalRMessage<PlayerNotification> Handle(SeerInspectionPerformed @event, [ReadAggregate("GameId")] GameState state) =>
-        PlayerNotification.ToPlayer(
-            state.RoomCode,
-            @event.SeerPlayerId,
-            "seer.result",
-            new { @event.TargetPlayerId, @event.IsWerewolf },
-            stateVersion: state.Version).ToWebSocketDestination();
+    /// <summary>
+    /// Unlike the other night-action handlers below, this one used to return only the private
+    /// seer.result push and never called <see cref="NightTurnNotifications"/> -- so nobody else
+    /// (including the Witch, whose turn this inspection just handed off to) ever learned the night
+    /// had advanced past Seer. They'd sit on the previous role's stale narration/turn state until
+    /// some other event happened to touch their own GameState version.
+    /// </summary>
+    public static IEnumerable<object> Handle(SeerInspectionPerformed @event, [ReadAggregate("GameId")] GameState state) =>
+        new object[]
+        {
+            PlayerNotification.ToPlayer(
+                state.RoomCode,
+                @event.SeerPlayerId,
+                "seer.result",
+                new { @event.TargetPlayerId, @event.IsWerewolf },
+                stateVersion: state.Version).ToWebSocketDestination()
+        }.Concat(NightTurnNotifications(state));
 
     // Werewolf pack coordination (who's voting for whom, whether the target has locked) is
     // deliberately NOT pushed over SignalR: which player IDs are in the room's SignalR player-group
