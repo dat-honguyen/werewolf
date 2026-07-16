@@ -30,6 +30,13 @@ public class GameState
     public int NightNumber { get; set; }
     public int DayNumber { get; set; }
 
+    /// <summary>
+    /// When the current Day Discussion phase began -- used to compute
+    /// <see cref="GetGameState.GameStateResponse.DiscussionDeadlineUtc"/>. Null outside
+    /// DayDiscussion (or before any day has started).
+    /// </summary>
+    public DateTime? DayStartedAtUtc { get; set; }
+
     public Dictionary<Guid, GamePlayer> Players { get; set; } = new();
 
     public NightActionsState CurrentNight { get; set; } = new();
@@ -169,6 +176,7 @@ public class GameState
     {
         Version++;
         DayNumber = @event.DayNumber;
+        DayStartedAtUtc = @event.StartedAtUtc;
         Phase = GamePhase.DayDiscussion;
     }
 

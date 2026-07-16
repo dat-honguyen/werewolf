@@ -429,6 +429,12 @@ channel; see §7 for why. Transitions to **Day Discussion** on `night resolved` 
 ```
 Transitions to **Voting** for everyone on `voting.started`.
 
+`GameStateResponse` (§ "GET /api/v1/game/{roomCode}") includes `discussionDeadlineUtc` (nullable
+`DateTime`), present only while `phase == "DayDiscussion"` -- computed as the phase's start time plus
+`GameSettings.DiscussionDurationSeconds`, for clients to render a synced countdown from. It's `null`
+in every other phase. Purely informational: the host still advances to Voting explicitly via
+`AdvanceToVoting`, the deadline elapsing doesn't auto-advance anything server-side.
+
 ### Voting
 
 ```

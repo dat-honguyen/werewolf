@@ -22,6 +22,13 @@ public record GameStateResponse
     public string? NightPrompt { get; init; }
 
     /// <summary>
+    /// When the current Day Discussion phase's shared countdown runs out, for clients to render a
+    /// synced clock from. Null outside DayDiscussion. Purely informational -- the host still
+    /// advances to Voting manually via AdvanceToVotingEndpoint.
+    /// </summary>
+    public DateTime? DiscussionDeadlineUtc { get; init; }
+
+    /// <summary>
     /// This aggregate's <see cref="GameState.Version"/> as of this read -- the "GetCurrentState()"
     /// half of the version-gap resync pattern (see <see cref="Notifications.PlayerNotification.StateVersion"/>):
     /// clients track the last version they've seen and call this endpoint whenever a SignalR
@@ -77,6 +84,9 @@ public static class GetGameStateEndpoint
             Result = state.Result,
             CurrentNightRole = NightNarrator.RoleFor(nightStep),
             NightPrompt = nightStep == NightRoleStep.Complete ? null : NightNarrator.Prompt(nightStep),
+            DiscussionDeadlineUtc = state.Phase == GamePhase.DayDiscussion && state.DayStartedAtUtc is { } startedAt
+                ? startedAt.AddSeconds(state.Settings.DiscussionDurationSeconds)
+                : null,
             Version = state.Version
         };
     }
