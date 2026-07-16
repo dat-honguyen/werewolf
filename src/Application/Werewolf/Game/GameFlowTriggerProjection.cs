@@ -45,6 +45,7 @@ public partial class GameFlowTriggerProjection : SingleStreamProjection<GameFlow
     public static GameFlowTrigger Apply(IEvent<WitchPassed> @event, GameFlowTrigger trigger) => trigger;
     public static GameFlowTrigger Apply(IEvent<CupidPairedLovers> @event, GameFlowTrigger trigger) => trigger;
     public static GameFlowTrigger Apply(IEvent<VoteCast> @event, GameFlowTrigger trigger) => trigger;
+    public static GameFlowTrigger Apply(IEvent<PlayerDied> @event, GameFlowTrigger trigger) => trigger;
 
     public override ValueTask RaiseSideEffects(IDocumentOperations ops, IEventSlice<GameFlowTrigger> slice)
     {
@@ -69,6 +70,16 @@ public partial class GameFlowTriggerProjection : SingleStreamProjection<GameFlow
                     break;
 
                 case VoteCast:
+                    slice.PublishMessage(new TryCloseVoting { RoomCode = trigger.RoomCode });
+                    break;
+
+                case PlayerDied:
+                    // A quit (or any other death) can complete whichever checklist is currently
+                    // blocking -- e.g. the last living Doctor quitting mid-Night, or the last
+                    // undecided voter quitting mid-DayVoting. Both handlers re-check their own guard
+                    // (phase + checklist) against fresh state, so firing both unconditionally here is
+                    // a safe no-op when neither applies.
+                    slice.PublishMessage(new TryResolveNight { RoomCode = trigger.RoomCode });
                     slice.PublishMessage(new TryCloseVoting { RoomCode = trigger.RoomCode });
                     break;
             }
