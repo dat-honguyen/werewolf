@@ -107,6 +107,25 @@ public class LobbyState
         Status = LobbyStatus.Closed;
     }
 
+    /// <summary>
+    /// Reopens a closed lobby for another round in the same room: everyone stays, but non-host
+    /// ready flags reset (same convention as a freshly created lobby, where only the host starts
+    /// ready) so the host can't immediately re-start before anyone's actually confirmed in.
+    /// </summary>
+    public void Apply(LobbyReopened _)
+    {
+        Version++;
+        Status = LobbyStatus.Open;
+        foreach (var playerId in Players.Keys.ToList())
+        {
+            if (playerId == HostPlayerId)
+            {
+                continue;
+            }
+            Players[playerId] = Players[playerId] with { IsReady = false };
+        }
+    }
+
     public void Apply(LobbyCancelled _)
     {
         Version++;

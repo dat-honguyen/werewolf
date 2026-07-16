@@ -114,6 +114,20 @@ public partial class RoomLobbyViewProjection : SingleStreamProjection<RoomLobbyV
     public static RoomLobbyView Apply(IEvent<LobbyClosed> _, RoomLobbyView view) =>
         view with { Status = LobbyStatus.Closed };
 
+    public static RoomLobbyView Apply(IEvent<LobbyReopened> @event, RoomLobbyView view)
+    {
+        var players = new Dictionary<Guid, RoomLobbyPlayerView>(view.Players);
+        foreach (var (playerId, player) in view.Players)
+        {
+            if (playerId == view.HostPlayerId)
+            {
+                continue;
+            }
+            players[playerId] = player with { IsReady = false };
+        }
+        return view with { Status = LobbyStatus.Open, Players = players };
+    }
+
     public static RoomLobbyView Apply(IEvent<LobbyCancelled> _, RoomLobbyView view) =>
         view with { Status = LobbyStatus.Cancelled };
 
@@ -145,6 +159,7 @@ public partial class RoomLobbyViewProjection : SingleStreamProjection<RoomLobbyV
                 case GameStarting:
                 case LobbyCancelled:
                 case LobbyClosed:
+                case LobbyReopened:
                     // e.Version is Marten's own stream position for this event -- numerically the
                     // same sequence LobbyState.Version counts up via its own Apply methods (both
                     // process every event in this stream in the same order), so this lines up with

@@ -72,6 +72,12 @@ public record LobbyClosed
     public required DateTime ClosedAtUtc { get; init; }
 }
 
+public record LobbyReopened
+{
+    public required Guid ReopenedBy { get; init; }
+    public required DateTime ReopenedAtUtc { get; init; }
+}
+
 public record LobbyCancelled
 {
     public required Guid CancelledBy { get; init; }
