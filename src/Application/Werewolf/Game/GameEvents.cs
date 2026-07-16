@@ -87,17 +87,20 @@ public record NightResolved
 
 public record HunterRevengePending
 {
+    public required Guid GameId { get; init; }
     public required Guid HunterPlayerId { get; init; }
 }
 
 public record HunterRevengeShotFired
 {
+    public required Guid GameId { get; init; }
     public required Guid HunterPlayerId { get; init; }
     public required Guid TargetPlayerId { get; init; }
 }
 
 public record HunterRevengeDeclined
 {
+    public required Guid GameId { get; init; }
     public required Guid HunterPlayerId { get; init; }
 }
 

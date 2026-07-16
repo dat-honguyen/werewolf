@@ -46,7 +46,7 @@ public static class QuitGameEndpoint
         var wasPendingHunter = state.PendingHunterRevenge.Count > 0 && state.PendingHunterRevenge.Peek() == command.PlayerId;
         if (wasPendingHunter)
         {
-            events += new HunterRevengeDeclined { HunterPlayerId = command.PlayerId };
+            events += new HunterRevengeDeclined { GameId = state.Id, HunterPlayerId = command.PlayerId };
         }
 
         var resolution = DeathResolver.Resolve(state, [command.PlayerId]);
@@ -63,12 +63,12 @@ public static class QuitGameEndpoint
         var otherPendingHunters = resolution.PendingHunterRevenge.Where(x => x != command.PlayerId).ToList();
         foreach (var hunterId in otherPendingHunters)
         {
-            events += new HunterRevengePending { HunterPlayerId = hunterId };
+            events += new HunterRevengePending { GameId = state.Id, HunterPlayerId = hunterId };
         }
         if (resolution.PendingHunterRevenge.Contains(command.PlayerId))
         {
-            events += new HunterRevengePending { HunterPlayerId = command.PlayerId };
-            events += new HunterRevengeDeclined { HunterPlayerId = command.PlayerId };
+            events += new HunterRevengePending { GameId = state.Id, HunterPlayerId = command.PlayerId };
+            events += new HunterRevengeDeclined { GameId = state.Id, HunterPlayerId = command.PlayerId };
         }
 
         if (wasPendingHunter)

@@ -94,7 +94,7 @@ public static class GameCommandSupport
 
         foreach (var hunterId in resolution.PendingHunterRevenge)
         {
-            events += new HunterRevengePending { HunterPlayerId = hunterId };
+            events += new HunterRevengePending { GameId = state.Id, HunterPlayerId = hunterId };
         }
 
         events.AddRange(TryResumeAfterHunterResolution(state, GamePhase.Night, resolution.DeadPlayers, resolution.PendingHunterRevenge.Count));
@@ -147,7 +147,7 @@ public static class GameCommandSupport
 
         foreach (var hunterId in deaths.PendingHunterRevenge)
         {
-            events += new HunterRevengePending { HunterPlayerId = hunterId };
+            events += new HunterRevengePending { GameId = state.Id, HunterPlayerId = hunterId };
         }
 
         events.AddRange(TryResumeAfterHunterResolution(state, GamePhase.DayResolution, deaths.DeadPlayers, deaths.PendingHunterRevenge.Count));
@@ -164,7 +164,7 @@ public static class GameCommandSupport
     {
         var events = new Events
         {
-            new HunterRevengeShotFired { HunterPlayerId = hunterPlayerId, TargetPlayerId = targetPlayerId }
+            new HunterRevengeShotFired { GameId = state.Id, HunterPlayerId = hunterPlayerId, TargetPlayerId = targetPlayerId }
         };
 
         var deaths = DeathResolver.Resolve(state, [targetPlayerId]);
@@ -180,7 +180,7 @@ public static class GameCommandSupport
 
         foreach (var newHunterId in deaths.PendingHunterRevenge)
         {
-            events += new HunterRevengePending { HunterPlayerId = newHunterId };
+            events += new HunterRevengePending { GameId = state.Id, HunterPlayerId = newHunterId };
         }
 
         events.AddRange(TryResumeAfterHunterResolution(state, state.Phase, deaths.DeadPlayers, deaths.PendingHunterRevenge.Count, dequeuedCount: 1));
@@ -194,7 +194,7 @@ public static class GameCommandSupport
     /// </summary>
     internal static Events DeclineHunterRevenge(GameState state, Guid hunterPlayerId)
     {
-        var events = new Events { new HunterRevengeDeclined { HunterPlayerId = hunterPlayerId } };
+        var events = new Events { new HunterRevengeDeclined { GameId = state.Id, HunterPlayerId = hunterPlayerId } };
         events.AddRange(TryResumeAfterHunterResolution(state, state.Phase, [], newlyPendingCount: 0, dequeuedCount: 1));
         return events;
     }
