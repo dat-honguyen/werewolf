@@ -55,9 +55,20 @@ public static class QuitGameEndpoint
             events += new PlayerDied { GameId = state.Id, PlayerId = linked, Cause = "lover-link" };
         }
 
-        foreach (var hunterId in resolution.PendingHunterRevenge)
+        // A player who just quit can't be asked to pick a revenge target -- if quitting makes them
+        // Hunter-eligible (they die holding an unused shot), auto-decline it in this same batch
+        // instead of leaving/showing them a prompt for someone who already left. A chain death from
+        // someone else (e.g. a lover-link partner) still gets a normal pending prompt -- they're
+        // still around to answer it.
+        var otherPendingHunters = resolution.PendingHunterRevenge.Where(x => x != command.PlayerId).ToList();
+        foreach (var hunterId in otherPendingHunters)
         {
             events += new HunterRevengePending { HunterPlayerId = hunterId };
+        }
+        if (resolution.PendingHunterRevenge.Contains(command.PlayerId))
+        {
+            events += new HunterRevengePending { HunterPlayerId = command.PlayerId };
+            events += new HunterRevengeDeclined { HunterPlayerId = command.PlayerId };
         }
 
         if (wasPendingHunter)
@@ -65,9 +76,9 @@ public static class QuitGameEndpoint
             // This quit resolves the pending shot the same way PassHunterRevengeEndpoint's decline
             // does, so it's safe to resume whatever phase transition it had paused.
             events.AddRange(GameCommandSupport.TryResumeAfterHunterResolution(
-                state, state.Phase, resolution.DeadPlayers, resolution.PendingHunterRevenge.Count, dequeuedCount: 1));
+                state, state.Phase, resolution.DeadPlayers, otherPendingHunters.Count, dequeuedCount: 1));
         }
-        else if (state.PendingHunterRevenge.Count + resolution.PendingHunterRevenge.Count == 0)
+        else if (state.PendingHunterRevenge.Count + otherPendingHunters.Count == 0)
         {
             // No Hunter revenge pause in play, so it's safe to check the win condition immediately --
             // a quit can end the game right away regardless of phase (e.g. the last living werewolf
