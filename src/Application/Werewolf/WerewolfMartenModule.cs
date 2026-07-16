@@ -52,12 +52,19 @@ public static class WerewolfMartenModule
 
         options.Projections.Add<RoomLobbyViewProjection>(Async);
         options.Projections.Add<PlayerGameViewProjection>(Async);
-        options.Projections.Add<GameFlowTriggerProjection>(Async);
 
         // Inline (not Async) so the GET log/directory endpoints read back-immediately-consistent
         // data right after the triggering command, with no eventual-consistency polling needed.
         options.Projections.Add<GameLogViewProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<PlayerDirectoryProjection>(ProjectionLifecycle.Inline);
+
+        // Inline (not Async): this is the sole trigger for TryResolveNight/TryCloseVoting, the only
+        // code that ever moves the game out of Night/DayVoting. Leaving it Async made phase
+        // advancement depend entirely on the async daemon's polling/leader-election health with no
+        // synchronous fallback -- a night action could be accepted and the game could still get stuck
+        // in Night forever if that daemon shard wasn't running. Inline ties it to the same durable
+        // outbox path the local queues already use, removing that dependency.
+        options.Projections.Add<GameFlowTriggerProjection>(ProjectionLifecycle.Inline);
 
         options.Events.UseOptimizedProjectionRebuilds = true;
         options.Projections.Errors.SkipApplyErrors = false;
