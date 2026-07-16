@@ -197,6 +197,7 @@ same player two nights in a row."`) when a guard fails.
 | `POST /api/v1/lobby/settings` | `{ roomCode, requestedBy, settings: {...GameSettings} }` | Host only. |
 | `POST /api/v1/lobby/cancel` | `{ roomCode, requestedBy }` | Host only; terminal. |
 | `POST /api/v1/lobby/start` | `{ roomCode, requestedBy, forceStart }` | Host only. Returns `{ gameId, roomCode }`. Bridges to Game. |
+| `POST /api/v1/lobby/rematch` | `{ roomCode, requestedBy }` | Host only; lobby `Status` must be `Closed` (game already started/ended in this room). Reopens the lobby: `Status` becomes `Open` again, every non-host player's ready flag resets to `false` (host stays ready), role distribution and settings carry over unchanged. Emits `LobbyReopened` event, triggering the same `lobby.updated` SignalR notification as any other lobby mutation (clients resync via `GET /api/v1/lobby` if needed). Returns 200 with no body. The subsequent `POST /api/v1/lobby/start` call creates a brand-new `GameState` stream (fresh `gameId`) for round 2, so chat and game log start empty automatically (both keyed by `GameId`, not `RoomCode`). |
 
 `Role` enum: `Villager, Werewolf, Seer, Doctor, Hunter, Witch, Cupid, Tanner`.
 
