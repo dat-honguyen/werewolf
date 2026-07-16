@@ -16,6 +16,17 @@ public record PlayerNotification : IGroupWebsocketMessage
     public object? Payload { get; init; }
 
     /// <summary>
+    /// The triggering aggregate's <see cref="Game.GameState.Version"/> at the time of this event,
+    /// for kinds derived from GameState. Null for notifications not tied to a versioned aggregate
+    /// (e.g. lobby.updated). Clients treat this as a "there's something newer than what I have"
+    /// signal only -- they don't apply <see cref="Payload"/> as authoritative state, they re-fetch
+    /// GetGameStateEndpoint whenever this exceeds the last version they've seen. This is what lets
+    /// the client resync correctly regardless of whether the gap is one event or ten, and removes
+    /// any need for a client-side polling timer.
+    /// </summary>
+    public long? StateVersion { get; init; }
+
+    /// <summary>
     /// SignalR group name every connection for a room joins on connect (see JoinRoomGroupHandler).
     /// </summary>
     public static string RoomGroup(RoomCode roomCode) => $"room:{roomCode.Value}";
@@ -26,21 +37,23 @@ public record PlayerNotification : IGroupWebsocketMessage
     /// </summary>
     public static string PlayerGroup(RoomCode roomCode, Guid playerId) => $"room:{roomCode.Value}:player:{playerId:N}";
 
-    public static PlayerNotification Broadcast(RoomCode roomCode, string kind, object? payload = null) =>
+    public static PlayerNotification Broadcast(RoomCode roomCode, string kind, object? payload = null, long? stateVersion = null) =>
         new()
         {
             RoomCode = roomCode,
             Kind = kind,
-            Payload = payload
+            Payload = payload,
+            StateVersion = stateVersion
         };
 
-    public static PlayerNotification ToPlayer(RoomCode roomCode, Guid playerId, string kind, object? payload = null) =>
+    public static PlayerNotification ToPlayer(RoomCode roomCode, Guid playerId, string kind, object? payload = null, long? stateVersion = null) =>
         new()
         {
             RoomCode = roomCode,
             Kind = kind,
             ToPlayerId = playerId,
-            Payload = payload
+            Payload = payload,
+            StateVersion = stateVersion
         };
 
     public SignalRMessage<PlayerNotification> ToWebSocketDestination() =>
@@ -51,8 +64,8 @@ public record PlayerNotification : IGroupWebsocketMessage
 
 public static class GameEventToNotificationHandler
 {
-    public static SignalRMessage<PlayerNotification> Handle(GameStarted @event) =>
-        PlayerNotification.Broadcast(@event.RoomCode, "game.started", new { @event.GameId }).ToWebSocketDestination();
+    public static SignalRMessage<PlayerNotification> Handle(GameStarted @event, [ReadAggregate("GameId")] GameState state) =>
+        PlayerNotification.Broadcast(@event.RoomCode, "game.started", new { @event.GameId }, stateVersion: state.Version).ToWebSocketDestination();
 
     public static SignalRMessage<PlayerNotification> Handle(PlayerDied @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "player.died", new
@@ -60,21 +73,22 @@ public static class GameEventToNotificationHandler
             @event.PlayerId,
             @event.Cause,
             Role = state.Settings.RevealRoleOnDeath ? state.Players[@event.PlayerId].Role : (Role?)null
-        }).ToWebSocketDestination();
+        }, stateVersion: state.Version).ToWebSocketDestination();
 
     public static SignalRMessage<PlayerNotification> Handle(PlayerLynched @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "player.lynched", new
         {
             @event.PlayerId,
             Role = state.Settings.RevealRoleOnDeath ? state.Players[@event.PlayerId].Role : (Role?)null
-        }).ToWebSocketDestination();
+        }, stateVersion: state.Version).ToWebSocketDestination();
 
     public static SignalRMessage<PlayerNotification> Handle(SeerInspectionPerformed @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.ToPlayer(
             state.RoomCode,
             @event.SeerPlayerId,
             "seer.result",
-            new { @event.TargetPlayerId, @event.IsWerewolf }).ToWebSocketDestination();
+            new { @event.TargetPlayerId, @event.IsWerewolf },
+            stateVersion: state.Version).ToWebSocketDestination();
 
     // Werewolf pack coordination (who's voting for whom, whether the target has locked) is
     // deliberately NOT pushed over SignalR: which player IDs are in the room's SignalR player-group
@@ -84,13 +98,13 @@ public static class GameEventToNotificationHandler
     // caller is themselves a living werewolf before returning anything.
 
     public static SignalRMessage<PlayerNotification> Handle(VoteCast @event, [ReadAggregate("GameId")] GameState state) =>
-        PlayerNotification.Broadcast(state.RoomCode, "vote.cast", new { @event.VoterPlayerId, @event.TargetPlayerId }).ToWebSocketDestination();
+        PlayerNotification.Broadcast(state.RoomCode, "vote.cast", new { @event.VoterPlayerId, @event.TargetPlayerId }, stateVersion: state.Version).ToWebSocketDestination();
 
     public static SignalRMessage<PlayerNotification> Handle(DayStarted @event, [ReadAggregate("GameId")] GameState state) =>
-        PlayerNotification.Broadcast(state.RoomCode, "day.started", new { @event.DayNumber }).ToWebSocketDestination();
+        PlayerNotification.Broadcast(state.RoomCode, "day.started", new { @event.DayNumber }, stateVersion: state.Version).ToWebSocketDestination();
 
     public static IEnumerable<object> Handle(NightStarted @event, [ReadAggregate("GameId")] GameState state) =>
-        new object[] { PlayerNotification.Broadcast(state.RoomCode, "night.started", new { @event.NightNumber }).ToWebSocketDestination() }
+        new object[] { PlayerNotification.Broadcast(state.RoomCode, "night.started", new { @event.NightNumber }, stateVersion: state.Version).ToWebSocketDestination() }
             .Concat(NightTurnNotifications(state));
 
     /// <summary>
@@ -132,23 +146,23 @@ public static class GameEventToNotificationHandler
             yield break;
         }
 
-        yield return PlayerNotification.Broadcast(state.RoomCode, "night.narration", new { Step = step, Text = NightNarrator.Prompt(step) }).ToWebSocketDestination();
+        yield return PlayerNotification.Broadcast(state.RoomCode, "night.narration", new { Step = step, Text = NightNarrator.Prompt(step) }, stateVersion: state.Version).ToWebSocketDestination();
 
         foreach (var playerId in NightChecklist.AlivePlayersWithRole(state, role.Value))
         {
-            yield return PlayerNotification.ToPlayer(state.RoomCode, playerId, "night.turn", new { Role = role.Value, Prompt = NightNarrator.Prompt(step) }).ToWebSocketDestination();
+            yield return PlayerNotification.ToPlayer(state.RoomCode, playerId, "night.turn", new { Role = role.Value, Prompt = NightNarrator.Prompt(step) }, stateVersion: state.Version).ToWebSocketDestination();
         }
     }
 
     public static SignalRMessage<PlayerNotification> Handle(VotingStarted @event, [ReadAggregate("GameId")] GameState state) =>
-        PlayerNotification.Broadcast(state.RoomCode, "voting.started").ToWebSocketDestination();
+        PlayerNotification.Broadcast(state.RoomCode, "voting.started", stateVersion: state.Version).ToWebSocketDestination();
 
     public static SignalRMessage<PlayerNotification> Handle(GameEnded @event, [ReadAggregate("GameId")] GameState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "game.ended", new
         {
             @event.WinningFaction,
             Roles = state.Players.ToDictionary(x => x.Key, x => x.Value.Role)
-        }).ToWebSocketDestination();
+        }, stateVersion: state.Version).ToWebSocketDestination();
 }
 
 /// <summary>

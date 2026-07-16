@@ -12,6 +12,15 @@ public class GameState
     [NaturalKey]
     public RoomCode RoomCode { get; set; } = default;
 
+    /// <summary>
+    /// Incremented by every single <c>Apply</c> below -- one per event actually folded into this
+    /// aggregate, in stream order, so it's a monotonically increasing sequence number clients can
+    /// use to detect a missed update (a version jump) instead of relying on polling. Exposed via
+    /// <see cref="GetGameState.GetGameStateEndpoint"/> and stamped onto every
+    /// <see cref="Notifications.PlayerNotification"/> this aggregate's events produce.
+    /// </summary>
+    public long Version { get; set; }
+
     public GamePhase Phase { get; set; } = GamePhase.RoleAssignment;
 
     public Guid HostPlayerId { get; set; }
@@ -42,6 +51,7 @@ public class GameState
     [NaturalKeySource]
     public void Apply(GameStarted @event)
     {
+        Version++;
         Id = @event.GameId;
         RoomCode = @event.RoomCode;
         HostPlayerId = @event.StartedBy;
@@ -51,6 +61,7 @@ public class GameState
 
     public void Apply(RolesAssigned @event)
     {
+        Version++;
         Players = @event.Assignments.ToDictionary(
             x => x.Key,
             x => new GamePlayer
@@ -64,6 +75,7 @@ public class GameState
 
     public void Apply(NightStarted @event)
     {
+        Version++;
         NightNumber = @event.NightNumber;
         CurrentNight = new NightActionsState();
         Phase = GamePhase.Night;
@@ -71,23 +83,27 @@ public class GameState
 
     public void Apply(CupidPairedLovers @event)
     {
+        Version++;
         Lovers = new(@event.FirstPlayerId, @event.SecondPlayerId);
         CurrentNight.CupidDone = true;
     }
 
     public void Apply(WerewolfVoteCast @event)
     {
+        Version++;
         CurrentNight.WerewolfVotes[@event.WolfPlayerId] = @event.TargetPlayerId;
     }
 
     public void Apply(WerewolfTargetLocked @event)
     {
+        Version++;
         CurrentNight.WerewolfLockedTarget = @event.TargetPlayerId;
         CurrentNight.WerewolfLocked = true;
     }
 
     public void Apply(DoctorProtectionChosen @event)
     {
+        Version++;
         CurrentNight.DoctorProtectedTarget = @event.ProtectedPlayerId;
         CurrentNight.DoctorDone = true;
         LastDoctorProtectedTarget = @event.ProtectedPlayerId;
@@ -95,12 +111,14 @@ public class GameState
 
     public void Apply(SeerInspectionPerformed @event)
     {
+        Version++;
         CurrentNight.SeerInspections[@event.SeerPlayerId] = @event.TargetPlayerId;
         CurrentNight.SeerDone = true;
     }
 
     public void Apply(WitchHealUsed @event)
     {
+        Version++;
         CurrentNight.WitchUsedHeal = true;
         CurrentNight.WitchDone = Settings.WitchSinglePotionPerNight || Players[@event.WitchPlayerId].WitchPoisonPotionUsed;
         Players[@event.WitchPlayerId] = Players[@event.WitchPlayerId] with { WitchHealPotionUsed = true };
@@ -108,6 +126,7 @@ public class GameState
 
     public void Apply(WitchPoisonUsed @event)
     {
+        Version++;
         CurrentNight.WitchPoisonTarget = @event.TargetPlayerId;
         CurrentNight.WitchUsedPoison = true;
         CurrentNight.WitchDone = Settings.WitchSinglePotionPerNight || Players[@event.WitchPlayerId].WitchHealPotionUsed;
@@ -116,61 +135,72 @@ public class GameState
 
     public void Apply(WitchPassed _)
     {
+        Version++;
         CurrentNight.WitchDone = true;
     }
 
     public void Apply(NightResolved _)
     {
+        Version++;
         CurrentNight.Resolved = true;
     }
 
     public void Apply(HunterRevengePending @event)
     {
+        Version++;
         PendingHunterRevenge.Enqueue(@event.HunterPlayerId);
     }
 
     public void Apply(HunterRevengeShotFired @event)
     {
+        Version++;
         Players[@event.HunterPlayerId] = Players[@event.HunterPlayerId] with { HunterRevengeUsed = true };
         _ = PendingHunterRevenge.Dequeue();
     }
 
     public void Apply(HunterRevengeDeclined @event)
     {
+        Version++;
         Players[@event.HunterPlayerId] = Players[@event.HunterPlayerId] with { HunterRevengeUsed = true };
         _ = PendingHunterRevenge.Dequeue();
     }
 
     public void Apply(DayStarted @event)
     {
+        Version++;
         DayNumber = @event.DayNumber;
         Phase = GamePhase.DayDiscussion;
     }
 
     public void Apply(VotingStarted _)
     {
+        Version++;
         CurrentVote = new DayVoteState { Started = true };
         Phase = GamePhase.DayVoting;
     }
 
     public void Apply(VoteCast @event)
     {
+        Version++;
         CurrentVote.Votes[@event.VoterPlayerId] = @event.TargetPlayerId;
     }
 
     public void Apply(VotingClosed _)
     {
+        Version++;
         CurrentVote.Closed = true;
         Phase = GamePhase.DayResolution;
     }
 
     public void Apply(PlayerLynched _)
     {
+        Version++;
         Phase = GamePhase.DayResolution;
     }
 
     public void Apply(PlayerDied @event)
     {
+        Version++;
         if (Players.TryGetValue(@event.PlayerId, out var player))
         {
             Players[@event.PlayerId] = player with { IsAlive = false };
@@ -179,6 +209,7 @@ public class GameState
 
     public void Apply(GameEnded @event)
     {
+        Version++;
         Phase = GamePhase.GameOver;
         Result = new()
         {
