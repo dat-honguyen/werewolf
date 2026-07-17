@@ -1,13 +1,8 @@
 name: Deploy backend
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "Dockerfile"
-      - "Directory.Packages.props"
-      - ".github/workflows/deploy.yml"
+  release:
+    types: [published]
   workflow_dispatch: {}
 
 permissions:
