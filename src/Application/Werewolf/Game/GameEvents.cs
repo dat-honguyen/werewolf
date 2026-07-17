@@ -155,3 +155,28 @@ public record GameEnded
     public required WinningFaction WinningFaction { get; init; }
     public required DateTime EndedAtUtc { get; init; }
 }
+
+/// <summary>
+/// A message sent to every player in the game ("Town Square"). Not folded into GameState (kept
+/// lean, same as GameLogView's raw-entries approach) -- only ChatLogView reacts to this.
+/// </summary>
+public record RoomChatMessageSent
+{
+    public required Guid GameId { get; init; }
+    public required Guid SenderId { get; init; }
+    public required string Text { get; init; }
+    public required DateTime SentAtUtc { get; init; }
+}
+
+/// <summary>
+/// A message sent to the werewolf pack only ("Pack Chat"). Deliberately never published over
+/// SignalR (see Notifications/PlayerNotification.cs's comment on GetWerewolfVotesEndpoint) --
+/// living werewolves poll GetPackChatEndpoint instead, which checks pack membership the same way.
+/// </summary>
+public record PackChatMessageSent
+{
+    public required Guid GameId { get; init; }
+    public required Guid SenderId { get; init; }
+    public required string Text { get; init; }
+    public required DateTime SentAtUtc { get; init; }
+}

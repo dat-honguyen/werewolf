@@ -207,6 +207,17 @@ public static class GameEventToNotificationHandler
             @event.WinningFaction,
             Roles = state.Players.ToDictionary(x => x.Key, x => x.Value.Role)
         }, stateVersion: state.Version).ToWebSocketDestination();
+
+    // Town Square only -- PackChatMessageSent is deliberately not registered in
+    // CritterConfiguration's PublishEvent list, so it never reaches this handler class at all (see
+    // GetPackChatEndpoint for how living werewolves read pack messages instead).
+    public static SignalRMessage<PlayerNotification> Handle(RoomChatMessageSent @event, [ReadAggregate("GameId")] GameState state) =>
+        PlayerNotification.Broadcast(state.RoomCode, "chat.room", new
+        {
+            @event.SenderId,
+            @event.Text,
+            @event.SentAtUtc
+        }, stateVersion: state.Version).ToWebSocketDestination();
 }
 
 /// <summary>

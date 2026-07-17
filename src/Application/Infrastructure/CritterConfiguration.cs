@@ -55,7 +55,7 @@ public static class CritterConfiguration
                 // Prod: use pre-generated code and enforce schema creation policy.
                 // Static code mode removes dynamic codegen at runtime for faster startup and safety.
                 x.Production.GeneratedCodeMode = TypeLoadMode.Static;
-                x.Production.ResourceAutoCreate = AutoCreate.CreateOrUpdate;
+                x.Production.ResourceAutoCreate = AutoCreate.All; //just a game, clear all
                 // Ensure generated code exists in production to avoid missing handler/aggregate types.
                 x.Production.AssertAllPreGeneratedTypesExist = true;
             });
@@ -123,6 +123,10 @@ public static class CritterConfiguration
                     x.PublishEvent<HunterRevengePending>();
                     x.PublishEvent<HunterRevengeShotFired>();
                     x.PublishEvent<HunterRevengeDeclined>();
+                    // Town Square is public, so it's broadcast like any other room-wide event.
+                    // PackChatMessageSent is deliberately NOT published here -- see its own
+                    // doc comment and GetPackChatEndpoint (poll, not push).
+                    x.PublishEvent<RoomChatMessageSent>();
                     // Lobby-side changes push via RoomLobbyViewProjection.RaiseSideEffects instead
                     // (same pattern as GameFlowTriggerProjection) — no separate subscription needed.
                 })
