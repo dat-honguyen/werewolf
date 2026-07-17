@@ -233,6 +233,11 @@ public static class CritterConfiguration
                     UseIdentityMapForAggregates = true,
                     // Quick append favors throughput; appropriate for event streams.
                     AppendMode = EventAppendMode.Quick,
+                    // Off by default in Marten -- without this, RaiseSideEffects on an Inline
+                    // projection (GameFlowTriggerProjection here) never runs, so its
+                    // TryResolveNight/TryCloseVoting messages are silently never published and the
+                    // game can never leave Night/DayVoting on its own.
+                    EnableSideEffectsOnInlineProjections = true,
                     // Archive partitioning and mandatory type declarations improve safety.
                     UseArchivedStreamPartitioning = true,
                     // Stream type declarations prevent accidental stream type mismatch.
