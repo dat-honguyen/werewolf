@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json.Serialization;
 using Application.Werewolf;
 using Application.Werewolf.Game;
+using Application.Werewolf.Maintenance;
 using Application.Werewolf.Notifications;
 using Weasel.Core;
 using Wolverine.ErrorHandling;
@@ -132,6 +133,9 @@ public static class CritterConfiguration
                 })
                 // InitializeWith ensures configured schemas and features are bootstrapped at startup.
                 .InitializeWith();
+
+            // Nightly janitor -- see RoomCleanupHostedService's doc comment for the schedule/rules.
+            services.AddHostedService<RoomCleanupHostedService>();
 
             return webApplication;
         }
