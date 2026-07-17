@@ -47,6 +47,16 @@ public partial class GameFlowTriggerProjection : SingleStreamProjection<GameFlow
     public static GameFlowTrigger Apply(IEvent<VoteCast> @event, GameFlowTrigger trigger) => trigger;
     public static GameFlowTrigger Apply(IEvent<PlayerDied> @event, GameFlowTrigger trigger) => trigger;
 
+    // NightResolved/VotingClosed themselves need no side effect (nothing to re-check -- they *are*
+    // the resolution), but including them in the slice lets RaiseSideEffects below tell "PlayerDied
+    // because TryResolveNight/CloseVotingAndResolve just settled the night/vote in this same batch"
+    // apart from "PlayerDied because a quit needs a fresh checklist re-check": the former always
+    // appends its own NightResolved/VotingClosed earlier in the same event list, so republishing
+    // TryResolveNight/TryCloseVoting for those deaths would just re-load the aggregate and no-op
+    // against the CurrentNight.Resolved/Phase guard already set by this same batch.
+    public static GameFlowTrigger Apply(IEvent<NightResolved> @event, GameFlowTrigger trigger) => trigger;
+    public static GameFlowTrigger Apply(IEvent<VotingClosed> @event, GameFlowTrigger trigger) => trigger;
+
     public override ValueTask RaiseSideEffects(IDocumentOperations ops, IEventSlice<GameFlowTrigger> slice)
     {
         var trigger = slice.Snapshot;
@@ -54,6 +64,8 @@ public partial class GameFlowTriggerProjection : SingleStreamProjection<GameFlow
         {
             return ValueTask.CompletedTask;
         }
+
+        var resolvedInThisBatch = false;
 
         foreach (var e in slice.Events())
         {
@@ -71,6 +83,22 @@ public partial class GameFlowTriggerProjection : SingleStreamProjection<GameFlow
 
                 case VoteCast:
                     slice.PublishMessage(new TryCloseVoting { RoomCode = trigger.RoomCode });
+                    break;
+
+                case NightResolved:
+                case VotingClosed:
+                    // Always appended before the PlayerDied events it causes (see
+                    // GameCommandSupport.TryResolveNight/CloseVotingAndResolve), so this flips before
+                    // the case below sees those deaths.
+                    resolvedInThisBatch = true;
+                    break;
+
+                case PlayerDied when resolvedInThisBatch:
+                    // This death came from the same TryResolveNight/TryCloseVoting call that already
+                    // settled the night/vote in this batch -- republishing would just reload the
+                    // aggregate and no-op. A death from an independent cause (a quit) never has
+                    // NightResolved/VotingClosed earlier in its own batch, so it still falls through
+                    // to the case below.
                     break;
 
                 case PlayerDied:
