@@ -49,7 +49,6 @@ public record GameSettings
 {
     public required bool RevealRoleOnDeath { get; init; }
     public required bool DoctorCanSelfProtect { get; init; }
-    public required bool WerewolfRequiresConsensus { get; init; }
     public required bool WerewolfCanTargetWerewolf { get; init; }
     public required bool WerewolfCanVoteNoKill { get; init; }
     public required bool WitchSinglePotionPerNight { get; init; }
@@ -75,7 +74,6 @@ public record GameSettings
     {
         RevealRoleOnDeath = true,
         DoctorCanSelfProtect = true,
-        WerewolfRequiresConsensus = true,
         WerewolfCanTargetWerewolf = false,
         WerewolfCanVoteNoKill = false,
         WitchSinglePotionPerNight = false,

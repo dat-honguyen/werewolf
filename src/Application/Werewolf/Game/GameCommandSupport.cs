@@ -59,7 +59,7 @@ public static class GameCommandSupport
     {
         var events = new Events();
 
-        if (!NightChecklist.IsComplete(state))
+        if (state.CurrentNight.Resolved || !NightChecklist.IsComplete(state))
         {
             return events;
         }

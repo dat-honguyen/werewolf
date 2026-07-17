@@ -32,10 +32,9 @@ public static class GetRolesEndpoint
                           "(WerewolfCanVoteNoKill lets the pack vote to kill no one; " +
                           "WerewolfCanTargetWerewolf lets them target one of their own, though never " +
                           "themselves). A doctor protection or the witch's heal potion can save the " +
-                          "chosen target. By default (WerewolfRequiresConsensus=true) the vote only " +
-                          "locks in once every living werewolf votes for the same player; otherwise " +
-                          "the game can be configured to lock in the majority target once all have " +
-                          "voted. Every living werewolf privately sees each pack member's vote as " +
+                          "chosen target. The vote locks in once every living werewolf has voted, on " +
+                          "whichever target got the most votes (ties broken at random). Every living " +
+                          "werewolf privately sees each pack member's vote as " +
                           "it's cast, and the final locked-in target (or no-kill). Wins the instant " +
                           "the number of living werewolves is greater than or equal to the number of " +
                           "living non-werewolves."

@@ -72,19 +72,11 @@ public static class SubmitWerewolfVoteEndpoint
 
         if (wolves.All(votes.ContainsKey))
         {
-            if (state.Settings.WerewolfRequiresConsensus)
-            {
-                var distinctTargets = votes.Values.Distinct().ToList();
-                if (distinctTargets.Count == 1)
-                {
-                    events += new WerewolfTargetLocked { GameId = state.Id, TargetPlayerId = distinctTargets[0] };
-                }
-            }
-            else
-            {
-                var grouped = votes.Values.GroupBy(x => x).OrderByDescending(x => x.Count()).First();
-                events += new WerewolfTargetLocked { GameId = state.Id, TargetPlayerId = grouped.Key };
-            }
+            var grouped = wolves.Select(w => votes[w]).GroupBy(x => x).ToList();
+            var topCount = grouped.Max(x => x.Count());
+            var topTargets = grouped.Where(x => x.Count() == topCount).Select(x => x.Key).ToList();
+            var target = topTargets.Count == 1 ? topTargets[0] : topTargets[Random.Shared.Next(topTargets.Count)];
+            events += new WerewolfTargetLocked { GameId = state.Id, TargetPlayerId = target };
         }
 
         return events;
