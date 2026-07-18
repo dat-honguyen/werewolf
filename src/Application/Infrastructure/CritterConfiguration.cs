@@ -91,45 +91,32 @@ public static class CritterConfiguration
                 .UseLightweightSessions()
                 .IntegrateWithWolverine(opts =>
                 {
-                    // Distribute event subscriptions across nodes and forward fast locally.
-                    // Managed distribution avoids duplicate projection work in multi-node setups.
+                    // Distribute event subscriptions across nodes (RoomLobbyViewProjection and
+                    // PlayerGameViewProjection are both Async -- see WerewolfMartenModule) instead
+                    // of a single hot node running them all.
                     opts.UseWolverineManagedEventSubscriptionDistribution = true;
-                    // Fast forwarding reduces latency by avoiding intermediate persistence hops.
+                    // Pushes committed Game events (GameStarted, NightStarted, ChatMessageSent,
+                    // ...) straight through Wolverine's outbox as soon as their transaction
+                    // commits, on to whatever already has a matching local handler -- here, every
+                    // Handle(SomeEvent, ...) overload in Notifications/PlayerNotification.cs, which
+                    // Wolverine finds via ordinary assembly scanning with no extra registration
+                    // needed. This used to run *alongside* an explicit
+                    // `.PublishEventsToWolverine("WerewolfNotifications", x => x.PublishEvent<T>()...)`
+                    // subscription for the same event types -- redundant, since fast forwarding
+                    // already forwards to any type with a known local handler. Per Wolverine's own
+                    // docs (wolverinefx.net/guide/durability/marten/event-forwarding): "The strong
+                    // recommendation is to use either subscriptions or event forwarding, but not
+                    // both in the same application" -- running both meant every one of these events
+                    // reached SignalR clients TWICE (two different trace/tenant ids for the
+                    // identical payload: one from the fast-forward path, one from the subscription's
+                    // own async-daemon catch-up), producing doubled toasts, doubled chat messages,
+                    // and an Angular NG0955 duplicate-track-key error in the player grid. Deleting
+                    // the subscription (see git history) rather than turning fast forwarding off
+                    // fixed the duplicate *and* kept the low-latency delivery -- confirmed with a
+                    // live two-browser repro (e2e/_explore2.spec.ts in werewolf-frontend): ~220ms,
+                    // single delivery, versus ~830ms once-only or ~220ms-but-doubled for every other
+                    // combination tried.
                     opts.UseFastEventForwarding = true;
-                })
-                // Forward committed Game events to the notification handlers (Werewolf/Notifications),
-                // which turn them into SignalR pushes to room/player groups.
-                .PublishEventsToWolverine("WerewolfNotifications", x =>
-                {
-                    x.PublishEvent<GameStarted>();
-                    x.PublishEvent<NightStarted>();
-                    x.PublishEvent<DayStarted>();
-                    x.PublishEvent<VotingStarted>();
-                    x.PublishEvent<PlayerDied>();
-                    x.PublishEvent<PlayerLynched>();
-                    x.PublishEvent<SeerInspectionPerformed>();
-                    x.PublishEvent<WerewolfTargetLocked>();
-                    x.PublishEvent<CupidPairedLovers>();
-                    x.PublishEvent<DoctorProtectionChosen>();
-                    x.PublishEvent<WitchHealUsed>();
-                    x.PublishEvent<WitchPoisonUsed>();
-                    x.PublishEvent<WitchPassed>();
-                    x.PublishEvent<VoteCast>();
-                    x.PublishEvent<GameEnded>();
-                    // A Hunter's revenge turn pauses the Night/DayResolution -> next-phase
-                    // transition exactly like a night role's turn does, and needs the same
-                    // "whose turn is it" push -- all three drive HunterRevengeTurnNotification,
-                    // since the queue's head can change on any of them (a new Hunter queued, or
-                    // the current one resolving and revealing the next).
-                    x.PublishEvent<HunterRevengePending>();
-                    x.PublishEvent<HunterRevengeShotFired>();
-                    x.PublishEvent<HunterRevengeDeclined>();
-                    // Town Square is public, so it's broadcast like any other room-wide event.
-                    // PackChatMessageSent is deliberately NOT published here -- see its own
-                    // doc comment and GetPackChatEndpoint (poll, not push).
-                    x.PublishEvent<RoomChatMessageSent>();
-                    // Lobby-side changes push via RoomLobbyViewProjection.RaiseSideEffects instead
-                    // (same pattern as GameFlowTriggerProjection) — no separate subscription needed.
                 })
                 // InitializeWith ensures configured schemas and features are bootstrapped at startup.
                 .InitializeWith();
