@@ -261,6 +261,7 @@ validation failure.
 | `GET /api/v1/game/{roomCode}/witch/target?playerId={id}` | `{ targetPlayerId? }` | Living-Witch-only; 404 for anyone else. `targetPlayerId` is the werewolves' locked target if `WitchKnowsWerewolfTarget` is on, else always `null` (see §4.1). |
 | `GET /api/v1/roles` | `List<RoleInfo>` | Static reference: every role, its faction, and a full-text description. Good for an in-app "how to play" screen. |
 | `GET /api/v1/rules` | `RulesResponse` | Static reference: overview, phase descriptions, night action order, win conditions, configurable settings (with defaults), and the same role list as `/api/v1/roles`. |
+| `GET /api/v1/version` | `{ version: string }` | The running build's version — the git release tag it was deployed from, or `dev-<short-sha>` for a non-release build. Baked into the Docker image at build time via the `APP_VERSION` build-arg. |
 
 There is currently no `GET` for `RoomLobbyView`/`PlayerGameView` (the lobby-side and per-player
 projections) — build the lobby screen from `POST` responses plus SignalR, or add a `GET` endpoint
