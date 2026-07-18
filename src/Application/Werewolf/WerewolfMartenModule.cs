@@ -59,7 +59,8 @@ public static class WerewolfMartenModule
         // data right after the triggering command, with no eventual-consistency polling needed.
         options.Projections.Add<GameLogViewProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<PlayerDirectoryProjection>(ProjectionLifecycle.Inline);
-        options.Projections.Add<ChatLogViewProjection>(ProjectionLifecycle.Inline);
+        options.Projections.Add<RoomChatLogViewProjection>(ProjectionLifecycle.Inline);
+        options.Projections.Add<PackChatLogViewProjection>(ProjectionLifecycle.Inline);
 
         // Inline (not Async): this is the sole trigger for TryResolveNight/TryCloseVoting, the only
         // code that ever moves the game out of Night/DayVoting. Leaving it Async made phase

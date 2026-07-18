@@ -197,7 +197,7 @@ same player two nights in a row."`) when a guard fails.
 | `POST /api/v1/lobby/settings` | `{ roomCode, requestedBy, settings: {...GameSettings} }` | Host only. |
 | `POST /api/v1/lobby/cancel` | `{ roomCode, requestedBy }` | Host only; terminal. |
 | `POST /api/v1/lobby/start` | `{ roomCode, requestedBy, forceStart }` | Host only. Returns `{ gameId, roomCode }`. Bridges to Game. |
-| `POST /api/v1/lobby/rematch` | `{ roomCode, requestedBy }` | Host only; lobby `Status` must be `Closed` (game already started/ended in this room). Reopens the lobby: `Status` becomes `Open` again, every non-host player's ready flag resets to `false` (host stays ready), role distribution and settings carry over unchanged. Emits `LobbyReopened` event, triggering the same `lobby.updated` SignalR notification as any other lobby mutation (clients resync via `GET /api/v1/lobby` if needed). Returns 200 with no body. The subsequent `POST /api/v1/lobby/start` call creates a brand-new `GameState` stream (fresh `gameId`) for round 2, so chat and game log start empty automatically (both keyed by `GameId`, not `RoomCode`). |
+| `POST /api/v1/lobby/rematch` | `{ roomCode, requestedBy }` | Host only; lobby `Status` must be `Closed` (game already started/ended in this room). Reopens the lobby: `Status` becomes `Open` again, every non-host player's ready flag resets to `false` (host stays ready), role distribution and settings carry over unchanged. Emits `LobbyReopened` event, triggering the same `lobby.updated` SignalR notification as any other lobby mutation (clients resync via `GET /api/v1/lobby` if needed). Returns 200 with no body. The subsequent `POST /api/v1/lobby/start` call creates a brand-new `GameState` stream (fresh `gameId`) for round 2, so the game log starts empty automatically (keyed by `GameId`) -- but Town Square chat (§4.4) is keyed by the lobby's own id, so it carries straight through into round 2 instead of resetting. |
 
 `Role` enum: `Villager, Werewolf, Seer, Doctor, Hunter, Witch, Cupid, Tanner`.
 
@@ -266,6 +266,20 @@ There is currently no `GET` for `RoomLobbyView`/`PlayerGameView` (the lobby-side
 projections) — build the lobby screen from `POST` responses plus SignalR, or add a `GET` endpoint
 following the same `FetchLatest`/`LoadAsync` pattern as `GetGameStateEndpoint`/`GetGameLogEndpoint` if
 you need one.
+
+### 4.4 Chat
+
+| Method & Route | Body / Query | Notes |
+|---|---|---|
+| `POST /api/v1/game/chat/room` | `{ roomCode, playerId, text }` | Town Square (public). Appends to `LobbyState` (not `GameState`), so it works from the moment a room is created, stays usable through an active game, and — unlike everything else keyed by `GameId` — carries straight through a `POST /api/v1/lobby/rematch` into round 2 instead of resetting. `playerId` must be a current member of the room; `text` max 500 chars. Broadcasts `chat.room` over SignalR (§7). |
+| `GET /api/v1/game/{roomCode}/chat/room` | — | Full Town Square history, oldest first, with sender display names resolved. Works before a game has started (see above). |
+| `POST /api/v1/game/chat/pack` | `{ roomCode, playerId, text }` | Werewolf-pack-only. Unlike Town Square, this stays keyed by `GameId` — pack membership only exists once roles are assigned, so it only works during an active game and resets each rematch round like the game log. Not pushed over SignalR; see the `GET` row. |
+| `GET /api/v1/game/{roomCode}/chat/pack?playerId={id}` | — | Living-werewolf-only; 404 for anyone else (same reasoning as the werewolf-votes/lovers endpoints in §4.3) — poll this instead of a push. |
+
+Town Square is deliberately *not* phase-gated — it's available in the Lobby, throughout Night/Day,
+and after `GameOver`. There is no server-side "muted at night" rule; if a client wants to restrict
+when the town-chat input is usable, that's a front-end-only decision layered on top of an always-
+available endpoint.
 
 ---
 
@@ -516,6 +530,7 @@ Notification `kind` values currently wired (see `Werewolf/Notifications/PlayerNo
 | `night.turn` | private (every living player holding the role that's now up) | `{ role, prompt }` — the actionable counterpart to `night.narration`: sent only to the player(s) who actually hold the next role, so the client knows to enable that role's controls right now. |
 | `vote.cast` | broadcast | `{ voterPlayerId, targetPlayerId }` — fired on every day-vote `CastVote`, not just once voting closes; `targetPlayerId` is `null` for an abstain. Lets everyone watch the tally live. |
 | `game.ended` | broadcast | `{ winningFaction, roles: { playerId: role } }` |
+| `chat.room` | broadcast | `{ senderId, text, sentAtUtc }` — fired on every Town Square `POST /api/v1/game/chat/room` (§4.4), including messages sent before a game has started. No `stateVersion` (see §0.2-adjacent note below) since it's driven off `LobbyState`, a different version counter than the rest of this table — comparing it against the client's last-known *GameState* version would be comparing two unrelated sequences. |
 
 `cause` for `player.died` is one of: `"night"`, `"lynch"`, `"lover-link"`, `"hunter-revenge"`.
 

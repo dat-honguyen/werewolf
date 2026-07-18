@@ -31,7 +31,7 @@ public static class GetPackChatEndpoint
             return null;
         }
 
-        var log = await session.LoadAsync<ChatLogView>(state.Id, cancellationToken);
+        var log = await session.LoadAsync<PackChatLogView>(state.Id, cancellationToken);
         if (log is null)
         {
             return new ChatMessagesResponse { Messages = [] };
@@ -42,7 +42,7 @@ public static class GetPackChatEndpoint
 
         return new ChatMessagesResponse
         {
-            Messages = log.PackMessages
+            Messages = log.Messages
                 .Select(m => new ChatMessageResponse
                 {
                     SenderId = m.SenderId,

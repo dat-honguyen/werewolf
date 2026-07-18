@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Application.Werewolf.Lobby;
 using Application.Werewolf.ReadModels;
 using System;
 using System.Collections.Generic;
@@ -22,8 +23,9 @@ public record ChatMessagesResponse
     public required List<ChatMessageResponse> Messages { get; init; }
 }
 
-// Town Square is a public channel -- anyone who can already GET the game state can read it, same
-// trust level as GetGameLogEndpoint.
+// Town Square is a public channel -- anyone who can already GET the lobby/game state can read it,
+// same trust level as GetGameLogEndpoint. Reads from LobbyState (not GameState) so it works before
+// a game has started too -- see RoomChatMessageSent's docs.
 public static class GetRoomChatEndpoint
 {
     [WolverineGet("/api/v1/game/{roomCode}/chat/room")]
@@ -32,13 +34,13 @@ public static class GetRoomChatEndpoint
         IDocumentSession session,
         CancellationToken cancellationToken)
     {
-        var state = await session.Events.FetchLatest<GameState, RoomCode>(roomCode, cancellationToken);
+        var state = await session.Events.FetchLatest<LobbyState, RoomCode>(roomCode, cancellationToken);
         if (state is null)
         {
             return null;
         }
 
-        var log = await session.LoadAsync<ChatLogView>(state.Id, cancellationToken);
+        var log = await session.LoadAsync<RoomChatLogView>(state.Id, cancellationToken);
         if (log is null)
         {
             return new ChatMessagesResponse { Messages = [] };
@@ -49,7 +51,7 @@ public static class GetRoomChatEndpoint
 
         return new ChatMessagesResponse
         {
-            Messages = log.RoomMessages
+            Messages = log.Messages
                 .Select(m => new ChatMessageResponse
                 {
                     SenderId = m.SenderId,

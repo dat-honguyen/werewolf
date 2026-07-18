@@ -157,12 +157,15 @@ public record GameEnded
 }
 
 /// <summary>
-/// A message sent to every player in the game ("Town Square"). Not folded into GameState (kept
-/// lean, same as GameLogView's raw-entries approach) -- only ChatLogView reacts to this.
+/// A message sent to everyone in the room ("Town Square"). Appended to the LobbyState stream
+/// (LobbyId), not GameState -- the lobby aggregate spans the room's whole lifetime (open, playing,
+/// closed, reopened for a rematch), so chat keeps working before a game has started and across
+/// rematches instead of resetting each round the way GameId-keyed data does. Only
+/// RoomChatLogViewProjection reacts to this.
 /// </summary>
 public record RoomChatMessageSent
 {
-    public required Guid GameId { get; init; }
+    public required Guid LobbyId { get; init; }
     public required Guid SenderId { get; init; }
     public required string Text { get; init; }
     public required DateTime SentAtUtc { get; init; }

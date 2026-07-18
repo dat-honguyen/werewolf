@@ -15,7 +15,8 @@ namespace Application.Werewolf.Maintenance;
 /// <summary>
 /// Nightly janitor: this is just a game with no data-retention requirement, so rooms that have gone
 /// quiet get wiped rather than kept around indefinitely (chat history included -- see
-/// <see cref="ReadModels.ChatLogView"/>). Runs once a day at <see cref="RunAtUtc"/> (21:00 UTC =
+/// <see cref="ReadModels.RoomChatLogView"/> and <see cref="ReadModels.PackChatLogView"/>). Runs
+/// once a day at <see cref="RunAtUtc"/> (21:00 UTC =
 /// 04:00 UTC+7, i.e. the low-traffic window). A room is "inactive" once <see cref="InactivityThreshold"/>
 /// has passed since the last event on either its Lobby stream or any of its Game streams (one per
 /// StartGame/rematch -- see RematchLobbyEndpoint's doc comment on why each round gets a fresh GameId).
@@ -143,13 +144,14 @@ public sealed class RoomCleanupHostedService(
         {
             await session.DocumentStore.Advanced.Clean.DeleteSingleEventStreamAsync(lobbyId, ct: ct);
             session.Delete<RoomLobbyView>(lobbyId);
+            session.Delete<RoomChatLogView>(lobbyId);
         }
 
         foreach (var gameId in room.GameIds)
         {
             await session.DocumentStore.Advanced.Clean.DeleteSingleEventStreamAsync(gameId, ct: ct);
             session.Delete<GameFlowTrigger>(gameId);
-            session.Delete<ChatLogView>(gameId);
+            session.Delete<PackChatLogView>(gameId);
             session.Delete<GameLogView>(gameId);
             session.DeleteWhere<PlayerGameView>(x => x.GameId == gameId);
         }

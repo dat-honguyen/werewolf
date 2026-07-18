@@ -1,5 +1,6 @@
 using Application.Werewolf.Domain;
 using Application.Werewolf.Game;
+using Application.Werewolf.Lobby;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -210,14 +211,18 @@ public static class GameEventToNotificationHandler
 
     // Town Square only -- PackChatMessageSent is deliberately not registered in
     // CritterConfiguration's PublishEvent list, so it never reaches this handler class at all (see
-    // GetPackChatEndpoint for how living werewolves read pack messages instead).
-    public static SignalRMessage<PlayerNotification> Handle(RoomChatMessageSent @event, [ReadAggregate("GameId")] GameState state) =>
+    // GetPackChatEndpoint for how living werewolves read pack messages instead). Reads LobbyState
+    // (not GameState) since RoomChatMessageSent now lives on the lobby's own stream -- see its docs.
+    // stateVersion is intentionally omitted: it's LobbyState.Version, not GameState.Version, and
+    // clients only compare chat.room's payload against GameStateResponse's own version elsewhere,
+    // so a lobby-scoped version number here would just be noise they never check.
+    public static SignalRMessage<PlayerNotification> Handle(RoomChatMessageSent @event, [ReadAggregate("LobbyId")] LobbyState state) =>
         PlayerNotification.Broadcast(state.RoomCode, "chat.room", new
         {
             @event.SenderId,
             @event.Text,
             @event.SentAtUtc
-        }, stateVersion: state.Version).ToWebSocketDestination();
+        }).ToWebSocketDestination();
 }
 
 /// <summary>

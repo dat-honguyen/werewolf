@@ -1,4 +1,5 @@
 using Application.Werewolf.Domain;
+using Application.Werewolf.Lobby;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -12,15 +13,20 @@ public record SendRoomChatMessage
     public required string Text { get; init; }
 }
 
+/// <summary>
+/// Appends to LobbyState (not GameState) so Town Square works from the moment a room is created --
+/// through an active game, and across rematches -- rather than only once a GameState exists. See
+/// RoomChatMessageSent's docs for why.
+/// </summary>
 public static class SendRoomChatMessageEndpoint
 {
     public const int MaxMessageLength = 500;
 
-    public static ProblemDetails Validate(SendRoomChatMessage command, [ReadAggregate("RoomCode")] GameState state)
+    public static ProblemDetails Validate(SendRoomChatMessage command, [ReadAggregate("RoomCode")] LobbyState state)
     {
         if (!state.Players.ContainsKey(command.PlayerId))
         {
-            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "You are not part of this game." };
+            return new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "You are not part of this room." };
         }
 
         if (string.IsNullOrWhiteSpace(command.Text))
@@ -37,11 +43,11 @@ public static class SendRoomChatMessageEndpoint
     }
 
     [WolverinePost("/api/v1/game/chat/room")]
-    public static Events Handle(SendRoomChatMessage command, [WriteAggregate("RoomCode")] GameState state) =>
+    public static Events Handle(SendRoomChatMessage command, [WriteAggregate("RoomCode")] LobbyState state) =>
         [
             new RoomChatMessageSent
             {
-                GameId = state.Id,
+                LobbyId = state.Id,
                 SenderId = command.PlayerId,
                 Text = command.Text.Trim(),
                 SentAtUtc = DateTime.UtcNow
