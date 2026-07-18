@@ -28,10 +28,13 @@ jobs:
             '[
               "set -e",
               "docker network create werewolf-net || true",
-              ("DB_PASSWORD=$(aws ssm get-parameter --name /werewolf/prod/db-password --with-decryption --query Parameter.Value --output text --region " + $region + ")"),
+              ("DB_CONN=$(aws ssm get-parameter --name /werewolf/prod/db-connection-string --with-decryption --query Parameter.Value --output text --region " + $region + ")"),
+              "DB_USER=$(echo \"$DB_CONN\" | sed -n \"s/.*Username=\\([^;]*\\).*/\\1/p\")",
+              "DB_PASSWORD=$(echo \"$DB_CONN\" | sed -n \"s/.*Password=\\([^;]*\\).*/\\1/p\")",
+              "DB_NAME=$(echo \"$DB_CONN\" | sed -n \"s/.*Database=\\([^;]*\\).*/\\1/p\")",
               "docker stop werewolf-postgres || true",
               "docker rm werewolf-postgres || true",
-              "docker run -d --name werewolf-postgres --restart unless-stopped --network werewolf-net -p 127.0.0.1:5432:5432 -e POSTGRES_DB=werewolf -e POSTGRES_USER=werewolf -e POSTGRES_PASSWORD=\"$DB_PASSWORD\" -v werewolf-pgdata:/var/lib/postgresql/data postgres:17",
+              "docker run -d --name werewolf-postgres --restart unless-stopped --network werewolf-net -p 127.0.0.1:5432:5432 -e POSTGRES_DB=\"$DB_NAME\" -e POSTGRES_USER=\"$DB_USER\" -e POSTGRES_PASSWORD=\"$DB_PASSWORD\" -v werewolf-pgdata:/var/lib/postgresql/data postgres:17",
               "sleep 5",
               "docker exec werewolf-postgres pg_isready"
             ]')

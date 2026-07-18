@@ -27,11 +27,14 @@ from that EC2 box to a Raspberry Pi 4.
    `deploy.yml`'s SSM-command pattern. It should be idempotent — safe to re-run — and do roughly:
    ```
    docker network create werewolf-net || true
+   DB_CONN=$(aws ssm get-parameter --name /werewolf/prod/db-connection-string --with-decryption ...)
+   DB_USER=$(parse Username= out of $DB_CONN)
+   DB_PASSWORD=$(parse Password= out of $DB_CONN)
+   DB_NAME=$(parse Database= out of $DB_CONN)
    docker run -d --name werewolf-postgres --restart unless-stopped \
      --network werewolf-net \
      -p 127.0.0.1:5432:5432 \
-     -e POSTGRES_DB=werewolf -e POSTGRES_USER=werewolf \
-     -e POSTGRES_PASSWORD=<from a new SSM SecureString param, e.g. /werewolf/prod/db-password> \
+     -e POSTGRES_DB="$DB_NAME" -e POSTGRES_USER="$DB_USER" -e POSTGRES_PASSWORD="$DB_PASSWORD" \
      -v werewolf-pgdata:/var/lib/postgresql/data \
      postgres:17
    ```
@@ -41,11 +44,13 @@ from that EC2 box to a Raspberry Pi 4.
      `0.0.0.0`, so it's never reachable from the internet, but it *is* reachable from an SSM
      port-forwarding session (see "Accessing the DB directly" below), the same way you'd tunnel
      into RDS today.
-2. Store the new Postgres password in a fresh SSM SecureString parameter (don't reuse/hardcode)
-   so it's managed the same way the existing DB connection string already is.
-3. Manually run this new workflow once. `deploy.yml` is completely untouched at this point — the
+   - Username/password/database are reused straight from the **existing** `db-connection-string`
+     parameter (the current RDS credentials) rather than minting a new SSM parameter — this keeps
+     Phase 2's cutover to a pure `Host=` swap in that same parameter, no credential rotation
+     involved.
+2. Manually run this new workflow once. `deploy.yml` is completely untouched at this point — the
    app is still pointed at RDS, nothing about the live site changes yet.
-4. Verify via SSM (`aws ssm send-command` with `AWS-RunShellScript`, same mechanism the deploy
+3. Verify via SSM (`aws ssm send-command` with `AWS-RunShellScript`, same mechanism the deploy
    workflow already uses) that `docker exec werewolf-postgres pg_isready` succeeds.
 
 ### Accessing the DB directly (like you could with RDS)
