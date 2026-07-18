@@ -29,7 +29,7 @@ jobs:
               "set -e",
               "docker network create werewolf-net || true",
               ("DB_CONN=$(aws ssm get-parameter --name /werewolf/prod/db-connection-string --with-decryption --query Parameter.Value --output text --region " + $region + ")"),
-              "DB_USER=$(echo \"$DB_CONN\" | sed -n \"s/.*Username=\\([^;]*\\).*/\\1/p\")",
+              "DB_USER=$(echo \"$DB_CONN\" | sed -n \"s/.*User ID=\\([^;]*\\).*/\\1/p\")",
               "DB_PASSWORD=$(echo \"$DB_CONN\" | sed -n \"s/.*Password=\\([^;]*\\).*/\\1/p\")",
               "DB_NAME=$(echo \"$DB_CONN\" | sed -n \"s/.*Database=\\([^;]*\\).*/\\1/p\")",
               "docker stop werewolf-postgres || true",

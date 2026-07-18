@@ -21,14 +21,20 @@ jobs:
           INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          COMMANDS=$(jq -n '[
+          COMMANDS=$(jq -n \
+            --arg region "$AWS_REGION" \
+            '[
             "docker ps -a",
             "echo ---werewolf-api-logs---",
             "docker logs --tail 100 werewolf-api 2>&1 || true",
             "echo ---werewolf-postgres-logs---",
             "docker logs --tail 50 werewolf-postgres 2>&1 || true",
             "echo ---werewolf-net---",
-            "docker network inspect werewolf-net 2>&1 || true"
+            "docker network inspect werewolf-net 2>&1 || true",
+            "echo ---db-connection-string-keys-redacted---",
+            ("aws ssm get-parameter --name /werewolf/prod/db-connection-string --with-decryption --query Parameter.Value --output text --region " + $region + " | sed \"s/Password=[^;]*/Password=REDACTED/\""),
+            "echo ---postgres-roles---",
+            "docker exec werewolf-postgres psql -U postgres -c \"\\du\""
           ]')
 
           jq -n \
