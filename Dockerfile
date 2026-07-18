@@ -29,9 +29,14 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
     && rm -rf /var/lib/apt/lists/*
 
+# Set by the CI build (git release tag, or dev-<short-sha> for non-release builds) so
+# GET /api/v1/version can report which build is actually running.
+ARG APP_VERSION=dev
+
 ENV ASPNETCORE_ENVIRONMENT=Production \
     ASPNETCORE_URLS=http://+:8080 \
-    DOTNET_EnableDiagnostics=0
+    DOTNET_EnableDiagnostics=0 \
+    APP_VERSION=$APP_VERSION
 
 COPY --from=build /app/publish .
 
