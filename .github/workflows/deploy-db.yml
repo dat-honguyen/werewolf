@@ -1,68 +1,44 @@
-name: Deploy backend
+name: Deploy Postgres to EC2
 
 on:
-  release:
-    types: [published]
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
 jobs:
-  build-and-deploy:
+  deploy-db:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and push image
+      - name: Stand up Postgres on EC2 via SSM
         env:
-          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          REPOSITORY: werewolf
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t "$REGISTRY/$REPOSITORY:$IMAGE_TAG" -t "$REGISTRY/$REPOSITORY:latest" .
-          docker push "$REGISTRY/$REPOSITORY:$IMAGE_TAG"
-          docker push "$REGISTRY/$REPOSITORY:latest"
-
-      - name: Deploy to EC2 via SSM
-        env:
-          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          REPOSITORY: werewolf
-          IMAGE_TAG: ${{ github.sha }}
           INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          IMAGE="$REGISTRY/$REPOSITORY:$IMAGE_TAG"
-
           # Built with jq so the $(...) command substitution below only ever runs on
           # the remote box (via the SSM agent), never expands here on the GH runner.
           COMMANDS=$(jq -n \
             --arg region "$AWS_REGION" \
-            --arg registry "$REGISTRY" \
-            --arg image "$IMAGE" \
             '[
               "set -e",
-              ("aws ecr get-login-password --region " + $region + " | docker login --username AWS --password-stdin " + $registry),
-              ("docker pull " + $image),
-              ("DB_CONN=$(aws ssm get-parameter --name /werewolf/prod/db-connection-string --with-decryption --query Parameter.Value --output text --region " + $region + ")"),
-              "docker stop werewolf-api || true",
-              "docker rm werewolf-api || true",
-              ("docker run -d --name werewolf-api --restart unless-stopped --network werewolf-net -p 5000:8080 -e TDIL_ConnectionStrings__database=\"$DB_CONN\" " + $image),
-              "docker image prune -f"
+              "docker network create werewolf-net || true",
+              ("DB_PASSWORD=$(aws ssm get-parameter --name /werewolf/prod/db-password --with-decryption --query Parameter.Value --output text --region " + $region + ")"),
+              "docker stop werewolf-postgres || true",
+              "docker rm werewolf-postgres || true",
+              "docker run -d --name werewolf-postgres --restart unless-stopped --network werewolf-net -p 127.0.0.1:5432:5432 -e POSTGRES_DB=werewolf -e POSTGRES_USER=werewolf -e POSTGRES_PASSWORD=\"$DB_PASSWORD\" -v werewolf-pgdata:/var/lib/postgresql/data postgres:17",
+              "sleep 5",
+              "docker exec werewolf-postgres pg_isready"
             ]')
 
           jq -n \
             --arg instance_id "$INSTANCE_ID" \
-            --arg comment "Deploy werewolf backend $IMAGE_TAG" \
+            --arg comment "Deploy werewolf postgres to EC2" \
             --argjson commands "$COMMANDS" \
             '{InstanceIds: [$instance_id], DocumentName: "AWS-RunShellScript", Comment: $comment, Parameters: {commands: $commands}}' \
             > ssm-params.json
