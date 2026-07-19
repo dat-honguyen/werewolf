@@ -29,6 +29,14 @@ public record GameStateResponse
     public DateTime? DiscussionDeadlineUtc { get; init; }
 
     /// <summary>
+    /// When the current Day Voting phase's shared countdown runs out, for clients to render a
+    /// synced clock from. Null outside DayVoting. Unlike DiscussionDeadlineUtc, the frontend
+    /// auto-closes voting once this passes (see CloseVotingEndpoint) rather than leaving it purely
+    /// informational.
+    /// </summary>
+    public DateTime? VotingDeadlineUtc { get; init; }
+
+    /// <summary>
     /// This aggregate's <see cref="GameState.Version"/> as of this read -- the "GetCurrentState()"
     /// half of the version-gap resync pattern (see <see cref="Notifications.PlayerNotification.StateVersion"/>):
     /// clients track the last version they've seen and call this endpoint whenever a SignalR
@@ -86,6 +94,9 @@ public static class GetGameStateEndpoint
             NightPrompt = nightStep == NightRoleStep.Complete ? null : NightNarrator.Prompt(nightStep),
             DiscussionDeadlineUtc = state.Phase == GamePhase.DayDiscussion && state.DayStartedAtUtc is { } startedAt
                 ? startedAt.AddSeconds(state.Settings.DiscussionDurationSeconds)
+                : null,
+            VotingDeadlineUtc = state.Phase == GamePhase.DayVoting && state.VotingStartedAtUtc is { } votingStartedAt
+                ? votingStartedAt.AddSeconds(state.Settings.VotingDurationSeconds)
                 : null,
             Version = state.Version
         };

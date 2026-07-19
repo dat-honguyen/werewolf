@@ -118,7 +118,14 @@ public static class GameCommandSupport
             .OrderByDescending(x => x.Count)
             .ToList();
 
-        if (voted.Count == 0 || (voted.Count > 1 && voted[0].Count == voted[1].Count))
+        // Majority rule: a lynch requires the top vote-getter to have been voted by *at least half
+        // of the currently-alive players* (not just a plurality of ballots cast, and not just half
+        // of those who bothered to vote) -- an unpopular target squeaking by on a 3-of-10 plurality
+        // while the rest scattered or abstained no longer hangs anyone. Unlike a ">half" threshold,
+        // "≥half" does NOT rule out ties on its own (10 alive, 5-5 both clear "≥half") -- the
+        // explicit tie-check below still catches that case, same as before this rule existed.
+        var aliveCount = state.AlivePlayers().Count();
+        if (voted.Count == 0 || voted[0].Count * 2 < aliveCount || (voted.Count > 1 && voted[0].Count == voted[1].Count))
         {
             events += new NoLynchOccurred();
             events += new NightStarted { GameId = state.Id, NightNumber = state.NightNumber + 1, StartedAtUtc = DateTime.UtcNow };

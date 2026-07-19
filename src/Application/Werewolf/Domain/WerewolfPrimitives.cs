@@ -70,6 +70,17 @@ public record GameSettings
     /// </summary>
     public int DiscussionDurationSeconds { get; init; } = 120;
 
+    /// <summary>
+    /// How long the Day Voting phase's client-side countdown runs for, in seconds, mirroring
+    /// <see cref="DiscussionDurationSeconds"/>. Same "purely a shared clock" caveat used to apply
+    /// here too, but the frontend now auto-closes voting once this expires (see
+    /// AdvanceToVotingEndpoint's sibling CloseVotingEndpoint) -- the deadline is still computed
+    /// server-side so every client renders the same synced countdown regardless of who triggers
+    /// the close. Not `required` for the same replay-compatibility reason as
+    /// DiscussionDurationSeconds.
+    /// </summary>
+    public int VotingDurationSeconds { get; init; } = 30;
+
     public static GameSettings Default() => new()
     {
         RevealRoleOnDeath = true,
@@ -80,7 +91,8 @@ public record GameSettings
         MinPlayers = 5,
         AllowForceStart = false,
         WitchKnowsWerewolfTarget = true,
-        DiscussionDurationSeconds = 120
+        DiscussionDurationSeconds = 120,
+        VotingDurationSeconds = 30
     };
 
     public static Dictionary<Role, int> DefaultRoleDistribution() => new()

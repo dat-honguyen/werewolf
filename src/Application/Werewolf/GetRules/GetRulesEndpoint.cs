@@ -44,7 +44,7 @@ public static class GetRulesEndpoint
         new() { Phase = GamePhase.Night, Description = "Living players with a night role (Cupid on night 1, Werewolf, Doctor, Seer, Witch) act. The phase auto-resolves into a death cascade once every living night role has acted." },
         new() { Phase = GamePhase.DayDiscussion, Description = "Night deaths are announced. No actions are available; the host explicitly advances to voting when discussion is over." },
         new() { Phase = GamePhase.DayVoting, Description = "Every living player casts one vote (or abstains). Voting auto-closes once all living players have voted, or the host can close it early." },
-        new() { Phase = GamePhase.DayResolution, Description = "The player with the most votes is lynched (no lynch on a tie or if everyone abstains); resulting deaths resolve, then night falls again." },
+        new() { Phase = GamePhase.DayResolution, Description = "The player with the most votes is lynched only if that's at least half of the currently-alive players (and not tied with another player); otherwise no one is lynched. Resulting deaths resolve, then night falls again." },
         new() { Phase = GamePhase.GameOver, Description = "A win condition has been met. GameState.Result holds the winning faction and final roles." }
     ];
 

@@ -37,6 +37,12 @@ public class GameState
     /// </summary>
     public DateTime? DayStartedAtUtc { get; set; }
 
+    /// <summary>
+    /// When the current Day Voting phase began -- used to compute
+    /// <see cref="GetGameState.GameStateResponse.VotingDeadlineUtc"/>. Null outside DayVoting.
+    /// </summary>
+    public DateTime? VotingStartedAtUtc { get; set; }
+
     public Dictionary<Guid, GamePlayer> Players { get; set; } = new();
 
     public NightActionsState CurrentNight { get; set; } = new();
@@ -180,11 +186,12 @@ public class GameState
         Phase = GamePhase.DayDiscussion;
     }
 
-    public void Apply(VotingStarted _)
+    public void Apply(VotingStarted @event)
     {
         Version++;
         CurrentVote = new DayVoteState { Started = true };
         Phase = GamePhase.DayVoting;
+        VotingStartedAtUtc = @event.StartedAtUtc;
     }
 
     public void Apply(VoteCast @event)
