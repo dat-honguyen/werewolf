@@ -92,7 +92,25 @@ can itself cascade (a lover, or another Hunter) — and only once the queue is e
 re-check the win condition and resume the phase transition (Night → Day, or Day → next Night) that was
 paused for it.
 
-### 5. Win conditions
+### 5. Day voting resolution
+
+Every living player casts one `CastVote` (or abstains); voting closes via `CloseVoting` once all
+living players have voted, or the host closes it early (or, on the frontend, once its own
+`VotingDeadlineUtc` countdown expires — see below). A lynch requires the top vote-getter to have
+**at least half of the currently-alive players'** votes, and no tie with the runner-up; otherwise no
+one is lynched and the game moves straight into the next Night. This is a real majority requirement,
+not a plurality — three votes out of ten scattered ballots no longer hangs someone just for having the
+most.
+
+`GameSettings.DiscussionDurationSeconds`/`VotingDurationSeconds` (defaults 120s/30s) are purely a
+shared clock: `GameState.DayStartedAtUtc`/`VotingStartedAtUtc` plus the configured duration produce
+`GameStateResponse.DiscussionDeadlineUtc`/`VotingDeadlineUtc` for every client to render the same
+countdown from. The backend itself never enforces either deadline — `AdvanceToVoting`/`CloseVoting`
+still only fire on an explicit host request (`GameCommandSupport.ValidateHost` + `ValidatePhase`
+reject anyone/anything else), it's just that the frontend's host client now fires that request
+automatically once its own countdown reaches 0:00, rather than only on a manual click.
+
+### 6. Win conditions
 
 Checked every time a death round fully settles (no Hunter revenge left pending):
 
