@@ -544,6 +544,21 @@ Werewolves' turn is active) and `GET /api/v1/game/{roomCode}/lovers?playerId={id
 Cupid pairs — see §4.3). Both 404 for anyone who isn't actually a living werewolf / one of the two
 lovers, rather than a 403, so a wrong guess can't be used to fish for the answer.
 
+> **Confirmed design decision (2026-07-20), do not change without revisiting this note.** This was
+> reconsidered explicitly — `PlayerNotification.ToPlayer` already proves a genuinely private,
+> per-player SignalR push is safe (that's exactly how `seer.result`/`night.turn`/`hunter.turn` work),
+> so pushing pack-vote updates the same way is technically possible. The reason to *not* do it isn't
+> "SignalR can't do this safely" — it's that the poll-and-404 design has a narrower, already-audited
+> leak surface than a push would: exactly one code path (`GetWerewolfVotesEndpoint`/
+> `GetLoversEndpoint`) ever decides "is this caller a pack member / a lover," and its response shape
+> is identical whether the answer is "wrong room," "not that role," or "game doesn't exist." A push
+> version has to make that same decision on every vote change, inside a `foreach` over
+> `AlivePlayersWithRole(state, Werewolf)` — which moves the decision out of one auditable boundary and
+> into application logs / APM / SignalR-group activity, none of which exist as a membership signal
+> today. The feature is low-frequency and latency-tolerant (a handful of votes across one night phase,
+> nobody blocked waiting on it), so push's only upside — lower latency — doesn't outweigh trading away
+> that invariant. Revisit only if polling latency becomes an actual complaint, not preemptively.
+
 There is currently **no SignalR push for Lobby-side changes** (join/leave/ready/settings) — only Game
 events are wired to notifications (see `PublishEventsToWolverine` in `CritterConfiguration.cs`). Poll
 or rely on your own optimistic UI update after each Lobby `POST` call for now.

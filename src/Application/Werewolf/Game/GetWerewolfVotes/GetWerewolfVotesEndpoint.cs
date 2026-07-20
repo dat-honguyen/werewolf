@@ -17,7 +17,9 @@ public record WerewolfVotesResponse
 // pulled over plain HTTP rather than pushed via SignalR (see Notifications/PlayerNotification.cs) --
 // this endpoint checks the caller is themselves a living werewolf before returning anything, and
 // returns 404 (not 403) for anyone else so the response itself never confirms or denies pack
-// membership.
+// membership. Confirmed design decision, not a TODO -- see GAME_FLOW.md §7's "Confirmed design
+// decision" note for why a private per-player SignalR push (technically fine, see seer.result/
+// night.turn/hunter.turn) still loses to keeping this one auditable poll-and-404 boundary.
 public static class GetWerewolfVotesEndpoint
 {
     [WolverineGet("/api/v1/game/{roomCode}/werewolf/votes")]
