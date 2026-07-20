@@ -12,6 +12,11 @@ declarative aggregate-loading attributes and Wolverine.SignalR for real-time pus
 - Regenerate Wolverine's ahead-of-time handler code after changing any handler chain (new event
   handler, new command, etc.): `dotnet run -- codegen write` from `src/Application/`.
 
+## Git commits
+
+**Never add a `Co-Authored-By` trailer (Claude or otherwise) to commits in this repo.** Commit
+messages should read like any other commit here — no AI-attribution footer.
+
 ## Reference project
 
 `/home/dat98/s/lion/I-Learn-Mircorservice-and-Event-Sourcing` — another microservice/event-sourcing
