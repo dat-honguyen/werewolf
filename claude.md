@@ -104,9 +104,17 @@ Configured in `src/Application/Infrastructure/CritterConfiguration.cs`:
 
 ## Docs & scripts
 
-- `GAME_FLOW.md` (repo root) — the FE integration reference: state machines, full HTTP API, call
-  order, screen/button layouts, and the SignalR notification catalog. Keep it in sync whenever a rule,
-  endpoint, or notification shape changes.
+- **Any change to an HTTP endpoint (route, request/response shape, added/removed) or a SignalR
+  command/notification (wire type, payload, new push, group scope) MUST update docs in the same
+  commit/PR** — not a follow-up. Three places, all three need it:
+  - `GAME_FLOW.md` (repo root, this is the canonical source) — the FE integration reference: state
+    machines, full HTTP API, call order, screen/button layouts, and the SignalR notification catalog.
+  - `../werewolf-frontend/GAME_FLOW.md` (sibling repo, same assumption `e2e/start-backend.cjs`
+    makes) — a copy of the file above; frontend's prettier reformats it on commit (emphasis
+    markers/table alignment differ) but the *content* must match.
+  - `../werewolf-frontend/docs/api-and-signalr-commands.md` — the flat command-reference table both
+    repos' agents consult first; it duplicates GAME_FLOW.md's API surface deliberately (quick lookup
+    vs. full narrative), so it drifts out of sync just as easily if skipped.
 - `scripts/manual_playthrough.md` — copy-pasteable `curl` walkthrough for driving a full game by hand.
 - `scripts/play_full_game.py` — scripted 8-player playthrough (deterministic bots) used to verify
   end-to-end behavior after rule changes; requires matplotlib for its timeline plot.
