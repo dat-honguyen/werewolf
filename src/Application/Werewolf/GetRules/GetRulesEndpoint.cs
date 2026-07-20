@@ -69,7 +69,7 @@ public static class GetRulesEndpoint
 
     private static readonly List<SettingInfo> Settings =
     [
-        new() { Name = "RevealRoleOnDeath", Default = "true", Description = "Whether a dead player's role is broadcast in live SignalR death notifications. Note: the debug GET game-state/log endpoints always show every role regardless of this setting." },
+        new() { Name = "RevealRoleOnDeath", Default = "false", Description = "Whether a dead player's role is broadcast in live SignalR death notifications. Note: the debug GET game-state/log endpoints always show every role regardless of this setting." },
         new() { Name = "DoctorCanSelfProtect", Default = "true", Description = "Whether the Doctor may choose themselves as the night's protection target." },
         new() { Name = "WerewolfCanTargetWerewolf", Default = "false", Description = "If true, werewolves may vote to kill a fellow living werewolf (never themselves). If false (default), only non-werewolves are valid vote targets." },
         new() { Name = "WerewolfCanVoteNoKill", Default = "false", Description = "If true, a werewolf may cast a no-kill vote (omit the target) instead of naming a victim; if every/most werewolf votes lock in on no-kill, the pack kills no one that night. If false (default), a target is mandatory." },

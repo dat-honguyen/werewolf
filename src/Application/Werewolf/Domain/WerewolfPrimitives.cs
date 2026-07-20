@@ -83,7 +83,7 @@ public record GameSettings
 
     public static GameSettings Default() => new()
     {
-        RevealRoleOnDeath = true,
+        RevealRoleOnDeath = false,
         DoctorCanSelfProtect = true,
         WerewolfCanTargetWerewolf = false,
         WerewolfCanVoteNoKill = false,
