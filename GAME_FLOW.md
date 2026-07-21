@@ -559,9 +559,15 @@ lovers, rather than a 403, so a wrong guess can't be used to fish for the answer
 > nobody blocked waiting on it), so push's only upside — lower latency — doesn't outweigh trading away
 > that invariant. Revisit only if polling latency becomes an actual complaint, not preemptively.
 
-There is currently **no SignalR push for Lobby-side changes** (join/leave/ready/settings) — only Game
-events are wired to notifications (see `PublishEventsToWolverine` in `CritterConfiguration.cs`). Poll
-or rely on your own optimistic UI update after each Lobby `POST` call for now.
+Lobby-side changes (join/leave/kick/ready/settings/role distribution/cancel/close/reopen) **are**
+pushed over SignalR: every lobby-mutating event is picked up by `RoomLobbyViewProjection`'s
+`RaiseSideEffects` (an `Async`-lifecycle projection, so delivery follows async-daemon health/lag,
+not the inline game-event path above) and published as `NotifyRoomUpdated`, which
+`RoomGroupNotificationHandler` turns into a room-wide `lobby.updated` notification carrying
+`stateVersion` (see the table's `lobby.updated` row) — the same version-gap-resync shape as every
+Game notification above, just keyed off `LobbyState.Version` instead of `GameState.Version`.
+Clients should treat `lobby.updated` as a "something changed, go re-`GET /api/v1/lobby`" signal
+rather than trying to read a payload off it.
 
 ---
 
