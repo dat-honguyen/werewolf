@@ -52,7 +52,6 @@ public static class WerewolfMartenModule
         options.Projections.LiveStreamAggregation<LobbyState>();
         options.Projections.LiveStreamAggregation<GameState>();
 
-        options.Projections.Add<RoomLobbyViewProjection>(Async);
         options.Projections.Add<PlayerGameViewProjection>(Async);
 
         // Inline (not Async) so the GET log/directory endpoints read back-immediately-consistent
@@ -61,6 +60,14 @@ public static class WerewolfMartenModule
         options.Projections.Add<PlayerDirectoryProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<RoomChatLogViewProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<PackChatLogViewProjection>(ProjectionLifecycle.Inline);
+
+        // Inline (not Async): RaiseSideEffects here is what pushes "lobby.updated" over SignalR,
+        // including PlayerReadyStatusChanged. Leaving it Async made the ready-status push depend
+        // entirely on the async daemon's polling/leader-election health, so clients could sit
+        // waiting for a "ready" broadcast that only ever fires once the daemon catches up (same
+        // failure shape already fixed for GameFlowTriggerProjection below). Inline ties the push to
+        // the same durable outbox path chat messages already use via fast event forwarding.
+        options.Projections.Add<RoomLobbyViewProjection>(ProjectionLifecycle.Inline);
 
         // Inline (not Async): this is the sole trigger for TryResolveNight/TryCloseVoting, the only
         // code that ever moves the game out of Night/DayVoting. Leaving it Async made phase
