@@ -514,6 +514,22 @@ On connect, send a `JoinGameRoom` message over the hub connection to subscribe:
 
 Send `LeaveGameRoom` (same shape) to unsubscribe. Two group scopes exist server-side:
 
+> **Known limitation / tech debt: `JoinGameRoom`'s ack does not guarantee group membership yet.**
+> The backend's Wolverine config sets `opts.Policies.UseDurableLocalQueues()` app-wide
+> (`CritterConfiguration.cs`), so a `JoinGameRoom` message received over the hub is durably enqueued
+> and acked back to the client *before* `JoinGameRoomHandler`'s `AddConnectionToGroup` side effect
+> has necessarily run on a background worker -- the ack only confirms "Wolverine accepted the
+> message," not "this connection is now a member of `room:{roomCode}`." In the narrow window between
+> those two, a broadcast to the room group (e.g. `chat.room`) can miss the newly-joined connection
+> entirely, with no retry or replay (Town Square messages aren't re-pushed, only re-fetched via a
+> fresh `GET /api/v1/game/{roomCode}/chat/room` on the next full page load). In practice this window
+> is sub-second and invisible to two humans typing at human speed, but it's real and reproducible
+> under WebSocket-level instrumentation -- see `e2e/chat-signalr.spec.ts`'s comment (frontend repo).
+> Fixing it properly means either routing `JoinGameRoom`/`LeaveGameRoom` through inline
+> (non-durable-queued) execution, or having the client wait for an explicit join-confirmation
+> round-trip before treating itself as subscribed -- not done yet because it's a durability/latency
+> tradeoff affecting a shared, app-wide Wolverine policy, not a one-line fix scoped to this feature.
+
 - **`room:{roomCode}`** — broadcasts everyone in the room receives: phase changes, deaths, game end.
 - **`room:{roomCode}:player:{playerId}`** — private to one player: e.g. a Seer's own inspection
   result. Only sent if you included `playerId` when joining.
