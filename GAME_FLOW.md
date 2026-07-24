@@ -276,6 +276,8 @@ you need one.
 | `GET /api/v1/game/{roomCode}/chat/room` | — | Full Town Square history, oldest first, with sender display names resolved. Works before a game has started (see above). |
 | `POST /api/v1/game/chat/pack` | `{ roomCode, playerId, text }` | Werewolf-pack-only. Unlike Town Square, this stays keyed by `GameId` — pack membership only exists once roles are assigned, so it only works during an active game and resets each rematch round like the game log. Not pushed over SignalR; see the `GET` row. |
 | `GET /api/v1/game/{roomCode}/chat/pack?playerId={id}` | — | Living-werewolf-only; 404 for anyone else (same reasoning as the werewolf-votes/lovers endpoints in §4.3) — poll this instead of a push. |
+| `POST /api/v1/game/chat/grave` | `{ roomCode, playerId, text }` | Dead-players-only ("Grave Chat"). Same `GameId`-keyed lifetime as Pack Chat — only makes sense once someone has died, so it only works during an active game and resets each rematch round. Not pushed over SignalR; see the `GET` row. |
+| `GET /api/v1/game/{roomCode}/chat/grave?playerId={id}` | — | Dead-player-only; 404 for living/unknown players — poll this instead of a push, same as Pack Chat. |
 
 Town Square is deliberately *not* phase-gated — it's available in the Lobby, throughout Night/Day,
 and after `GameOver`. There is no server-side "muted at night" rule; if a client wants to restrict

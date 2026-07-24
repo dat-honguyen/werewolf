@@ -93,3 +93,42 @@ public partial class PackChatLogViewProjection : SingleStreamProjection<PackChat
             ]
         };
 }
+
+/// <summary>
+/// Grave Chat history, keyed by GameId -- same reasoning as Pack Chat: only makes sense once a
+/// game is underway (someone has to have died), so it stays scoped to the GameState stream and
+/// resets each round.
+/// </summary>
+public record GraveChatLogView
+{
+    public required Guid Id { get; init; }
+    public required List<ChatMessageEntry> Messages { get; init; }
+}
+
+public partial class GraveChatLogViewProjection : SingleStreamProjection<GraveChatLogView, Guid>
+{
+    public const int VERSION = 1;
+
+    public GraveChatLogViewProjection()
+    {
+        Version = VERSION;
+    }
+
+    public static GraveChatLogView Create(IEvent<GameStarted> @event) =>
+        new() { Id = @event.Data.GameId, Messages = [] };
+
+    public static GraveChatLogView Apply(IEvent<GraveChatMessageSent> @event, GraveChatLogView view) =>
+        view with
+        {
+            Messages =
+            [
+                .. view.Messages,
+                new ChatMessageEntry
+                {
+                    SenderId = @event.Data.SenderId,
+                    Text = @event.Data.Text,
+                    SentAtUtc = @event.Data.SentAtUtc
+                }
+            ]
+        };
+}

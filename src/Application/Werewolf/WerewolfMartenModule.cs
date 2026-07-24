@@ -47,7 +47,8 @@ public static class WerewolfMartenModule
             .AddEventType<PlayerDied>()
             .AddEventType<GameEnded>()
             .AddEventType<RoomChatMessageSent>()
-            .AddEventType<PackChatMessageSent>();
+            .AddEventType<PackChatMessageSent>()
+            .AddEventType<GraveChatMessageSent>();
 
         options.Projections.LiveStreamAggregation<LobbyState>();
         options.Projections.LiveStreamAggregation<GameState>();
@@ -60,6 +61,7 @@ public static class WerewolfMartenModule
         options.Projections.Add<PlayerDirectoryProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<RoomChatLogViewProjection>(ProjectionLifecycle.Inline);
         options.Projections.Add<PackChatLogViewProjection>(ProjectionLifecycle.Inline);
+        options.Projections.Add<GraveChatLogViewProjection>(ProjectionLifecycle.Inline);
 
         // Inline (not Async): RaiseSideEffects here is what pushes "lobby.updated" over SignalR,
         // including PlayerReadyStatusChanged. Leaving it Async made the ready-status push depend

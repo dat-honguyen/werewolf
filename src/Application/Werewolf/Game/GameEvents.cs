@@ -183,3 +183,16 @@ public record PackChatMessageSent
     public required string Text { get; init; }
     public required DateTime SentAtUtc { get; init; }
 }
+
+/// <summary>
+/// A message sent to dead players only ("Grave Chat"). Deliberately never published over SignalR,
+/// same posture as PackChatMessageSent -- dead players poll GetGraveChatEndpoint instead, which
+/// checks the caller is dead the same way SendGraveChatMessageEndpoint does.
+/// </summary>
+public record GraveChatMessageSent
+{
+    public required Guid GameId { get; init; }
+    public required Guid SenderId { get; init; }
+    public required string Text { get; init; }
+    public required DateTime SentAtUtc { get; init; }
+}
