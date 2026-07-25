@@ -2,7 +2,6 @@ using Application.Werewolf.Domain;
 using Application.Werewolf.ReadModels;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,17 +11,13 @@ public record GameLogResponse
 {
     public required string RoomCode { get; init; }
     public required Guid GameId { get; init; }
-    public required List<string> Entries { get; init; }
+    public required List<GameLogEntry> Entries { get; init; }
 }
 
-// Test/debugging-only read endpoint: renders GameLogView's raw entries (which embed player
-// GUIDs, baked in at projection time) with player display names substituted in, using
-// PlayerDirectoryProjection (Id -> DisplayName, sourced from lobby join/create events) so the
-// log reads like "Alice was assigned role Werewolf" instead of a wall of GUIDs.
-//
-// [ReadAggregate]/[Aggregate] only resolve identity as a Guid route value in this Wolverine
-// version, which doesn't fit a RoomCode natural key — so this fetches directly and relies on
-// Wolverine's nullable-return 200-or-404 convention instead (see claude.md).
+// Backs the frontend's Game Over "View full game log" screen. Entries are structured
+// (type + raw data) rather than pre-formatted English sentences specifically so the frontend can
+// render them in the active locale -- player names, role/faction names, and death causes are all
+// resolved client-side from ids/enum values, never baked into a string here.
 public static class GetGameLogEndpoint
 {
     [WolverineGet("/api/v1/game/{roomCode}/log")]
@@ -43,18 +38,11 @@ public static class GetGameLogEndpoint
             return null;
         }
 
-        var directory = await session.LoadManyAsync<PlayerDirectoryEntry>(cancellationToken, state.Players.Keys.ToArray());
-        var namesById = directory.ToDictionary(x => x.Id, x => x.DisplayName);
-
-        var entries = log.Entries
-            .Select(entry => namesById.Aggregate(entry, (text, pair) => text.Replace(pair.Key.ToString(), pair.Value)))
-            .ToList();
-
         return new GameLogResponse
         {
             RoomCode = state.RoomCode.Value,
             GameId = state.Id,
-            Entries = entries
+            Entries = log.Entries
         };
     }
 }
