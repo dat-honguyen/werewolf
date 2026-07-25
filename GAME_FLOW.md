@@ -255,7 +255,7 @@ validation failure.
 | Method & Route | Returns | Notes |
 |---|---|---|
 | `GET /api/v1/game/{roomCode}` | `GameStateResponse` | Full current game state — phase, players (role + alive), lovers, werewolf locked target, pending hunter-revenge queue, result. See §5.3. |
-| `GET /api/v1/game/{roomCode}/log` | `GameLogResponse` | Human-readable play-by-play with player names substituted for ids (backed by `GameLogView` + `PlayerDirectory`, both `Inline` projections — safe to read immediately after the triggering call). |
+| `GET /api/v1/game/{roomCode}/log` | `GameLogResponse` | Structured play-by-play (`{ type, data }` per entry, mirroring the SignalR hub's own envelope) — the frontend resolves player ids to names and enum-ish fields (role/faction/cause) to locale text itself; the backend does no string formatting (backed by `GameLogView`, an `Inline` projection — safe to read immediately after the triggering call). |
 | `GET /api/v1/game/{roomCode}/werewolf/votes?playerId={id}` | `{ votes: { [wolfPlayerId]: targetPlayerId? }, locked, lockedTarget? }` | Living-werewolf-only pack tally, polled instead of pushed — see §3 and §7. Returns 404 (not 403) if `playerId` isn't a living werewolf, so the response can't be used to test pack membership. |
 | `GET /api/v1/game/{roomCode}/lovers?playerId={id}` | `{ firstPlayerId, secondPlayerId }` | Only for the two players Cupid actually paired — 404 for anyone else (including a caller with no lovers set yet), same reasoning as the werewolf-votes endpoint. |
 | `GET /api/v1/game/{roomCode}/witch/target?playerId={id}` | `{ targetPlayerId? }` | Living-Witch-only; 404 for anyone else. `targetPlayerId` is the werewolves' locked target if `WitchKnowsWerewolfTarget` is on, else always `null` (see §4.1). |
@@ -718,7 +718,8 @@ type GameStateResponse = {
 };
 
 // GET /api/v1/game/{roomCode}/log
-type GameLogResponse = { roomCode: string; gameId: string; entries: string[] };
+type GameLogEntry = { type: string; data: Record<string, string | number | boolean | null> };
+type GameLogResponse = { roomCode: string; gameId: string; entries: GameLogEntry[] };
 
 // GET /api/v1/game/{roomCode}/werewolf/votes?playerId={id} — 404 unless a living werewolf
 type WerewolfVotesResponse = { votes: Record<string, string | null>; locked: boolean; lockedTarget: string | null };
