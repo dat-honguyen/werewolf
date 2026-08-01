@@ -258,7 +258,9 @@ validation failure.
 | `GET /api/v1/game/{roomCode}/log` | `GameLogResponse` | Structured play-by-play (`{ type, data }` per entry, mirroring the SignalR hub's own envelope) — the frontend resolves player ids to names and enum-ish fields (role/faction/cause) to locale text itself; the backend does no string formatting (backed by `GameLogView`, an `Inline` projection — safe to read immediately after the triggering call). |
 | `GET /api/v1/game/{roomCode}/werewolf/votes?playerId={id}` | `{ votes: { [wolfPlayerId]: targetPlayerId? }, locked, lockedTarget? }` | Living-werewolf-only pack tally, polled instead of pushed — see §3 and §7. Returns 404 (not 403) if `playerId` isn't a living werewolf, so the response can't be used to test pack membership. |
 | `GET /api/v1/game/{roomCode}/lovers?playerId={id}` | `{ firstPlayerId, secondPlayerId }` | Only for the two players Cupid actually paired — 404 for anyone else (including a caller with no lovers set yet), same reasoning as the werewolf-votes endpoint. |
-| `GET /api/v1/game/{roomCode}/witch/target?playerId={id}` | `{ targetPlayerId? }` | Living-Witch-only; 404 for anyone else. `targetPlayerId` is the werewolves' locked target if `WitchKnowsWerewolfTarget` is on, else always `null` (see §4.1). |
+| `GET /api/v1/game/{roomCode}/witch/target?playerId={id}` | `{ targetPlayerId?, healPotionAvailable, poisonPotionAvailable, hasActedThisNight }` | Living-Witch-only; 404 for anyone else. `targetPlayerId` is the werewolves' locked target if `WitchKnowsWerewolfTarget` is on, else always `null` (see §4.1). The three booleans let a client reconstruct the Witch panel's state after a reload — `healPotionAvailable`/`poisonPotionAvailable` are lifetime (game-long) potion availability, `hasActedThisNight` is whether she's already used a potion or passed this night. |
+| `GET /api/v1/game/{roomCode}/seer/status?playerId={id}` | `{ hasActedThisNight, lastInspection: { targetPlayerId, isWerewolf }? }` | Living-Seer-only; 404 for anyone else. Lets a client reconstruct the Seer panel's state after a reload — the `seer.result` SignalR push only ever fires once, at the moment she inspects, so a reload has nothing else to restore it from. |
+| `GET /api/v1/game/{roomCode}/doctor/status?playerId={id}` | `{ hasActedThisNight, protectedTargetPlayerId? }` | Living-Doctor-only; 404 for anyone else. Same reload-reconstruction purpose as the Seer/Witch status endpoints above. |
 | `GET /api/v1/roles` | `List<RoleInfo>` | Static reference: every role, its faction, and a full-text description. Good for an in-app "how to play" screen. |
 | `GET /api/v1/rules` | `RulesResponse` | Static reference: overview, phase descriptions, night action order, win conditions, configurable settings (with defaults), and the same role list as `/api/v1/roles`. |
 | `GET /api/v1/version` | `{ version: string }` | The running build's version — the git release tag it was deployed from, or `dev-<short-sha>` for a non-release build. Baked into the Docker image at build time via the `APP_VERSION` build-arg. |
@@ -728,7 +730,21 @@ type WerewolfVotesResponse = { votes: Record<string, string | null>; locked: boo
 type LoversResponse = { firstPlayerId: string; secondPlayerId: string };
 
 // GET /api/v1/game/{roomCode}/witch/target?playerId={id} — 404 unless a living Witch
-type WitchTargetResponse = { targetPlayerId: string | null }; // null if WitchKnowsWerewolfTarget is off
+type WitchTargetResponse = {
+    targetPlayerId: string | null; // null if WitchKnowsWerewolfTarget is off
+    healPotionAvailable: boolean; // lifetime (game-long), not just this night
+    poisonPotionAvailable: boolean;
+    hasActedThisNight: boolean; // already used a potion or passed this night
+};
+
+// GET /api/v1/game/{roomCode}/seer/status?playerId={id} — 404 unless a living Seer
+type SeerStatusResponse = {
+    hasActedThisNight: boolean;
+    lastInspection: { targetPlayerId: string; isWerewolf: boolean } | null;
+};
+
+// GET /api/v1/game/{roomCode}/doctor/status?playerId={id} — 404 unless a living Doctor
+type DoctorStatusResponse = { hasActedThisNight: boolean; protectedTargetPlayerId: string | null };
 
 // GET /api/v1/roles
 type RoleInfo = { role: Role; faction: string; description: string };

@@ -8,6 +8,13 @@ namespace Application.Werewolf.Game.GetWitchTarget;
 public record WitchTargetResponse
 {
     public required Guid? TargetPlayerId { get; init; }
+
+    // Lifetime (game-long) potion availability plus this-night action status -- lets a client
+    // that just (re)loaded reconstruct whether the Witch panel should show as already acted,
+    // rather than relying on local component state that resets on every page load.
+    public required bool HealPotionAvailable { get; init; }
+    public required bool PoisonPotionAvailable { get; init; }
+    public required bool HasActedThisNight { get; init; }
 }
 
 // Gated by GameSettings.WitchKnowsWerewolfTarget: when the setting is on (the classic tabletop
@@ -36,7 +43,10 @@ public static class GetWitchTargetEndpoint
 
         return new WitchTargetResponse
         {
-            TargetPlayerId = state.Settings.WitchKnowsWerewolfTarget ? state.CurrentNight.WerewolfLockedTarget : null
+            TargetPlayerId = state.Settings.WitchKnowsWerewolfTarget ? state.CurrentNight.WerewolfLockedTarget : null,
+            HealPotionAvailable = !player.WitchHealPotionUsed,
+            PoisonPotionAvailable = !player.WitchPoisonPotionUsed,
+            HasActedThisNight = state.CurrentNight.WitchDone
         };
     }
 }
