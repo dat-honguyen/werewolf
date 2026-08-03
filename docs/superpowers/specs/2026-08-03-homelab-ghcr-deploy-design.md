@@ -50,23 +50,27 @@ None of the above changes in this design — a new, parallel `deploy-homelab.yml
 - **Directory convention**: `/opt/homelab/<project>/` holds that project's Quadlet files and `.env`.
   Same layout for every future project.
 
-## 2. CI/CD path: pull-based, via systemd timer
+## 2. CI/CD path: self-hosted GitHub Actions runner on the box
 
-The box is put to sleep to save power, which rules out anything that needs the box reachable *at the
-moment* a release fires (self-hosted GitHub Actions runner sitting idle — dies when asleep, no retry
-for an offline runner; SSH-push-on-release — fails silently if asleep; SSH-push + Wake-on-LAN — needs a
-second always-on LAN device to send the magic packet, extra moving part for no real benefit).
+Originally considered a pull-based systemd timer to dodge the box's sleep-for-power habit, but a
+**self-hosted GitHub Actions runner queues the job and waits rather than failing** when the runner is
+offline (default queue timeout is generous — hours, not minutes), so it tolerates sleep just as well
+while being far less to build and maintain: no custom polling script, no `.timer` unit, no digest-diff
+logic. Revisit only if queued-job wait time in practice turns out to be too short for how long the box
+stays asleep.
 
-Chosen approach: **the box pulls on its own schedule**, independent of when CI runs:
-
-- A generic script (parameterized by project/image/service name, reused across projects) run by a
-  `.timer` unit every 15–30 min: check the registry for a new image digest, and if changed,
-  `podman pull` + `systemctl restart <project>.service`.
-- If the box is asleep, the timer just doesn't fire until next awake, then catches up on the next tick.
-- The same script is kept available for manual on-demand use (SSH in, run it directly) when immediate
-  deploy is wanted and the box is known to be awake.
-- GitHub Actions' job responsibility ends at "build and push the image" — it never tries to reach the
-  box directly. This is what decouples release timing from box uptime.
+- Install the GitHub Actions self-hosted runner directly on the Debian box (one-time setup, registered
+  against the repo or an org, with a label like `home-werwolf` — reusable for future projects' workflows
+  by targeting the same label).
+- The deploy job in each workflow targets `runs-on: [self-hosted, home-werwolf]`. If the box is asleep,
+  the job sits queued until the runner reconnects, then runs — no separate mechanism needed to "wait
+  for awake."
+- That job does the pull + restart directly: `podman pull ghcr.io/<owner>/<image>:latest` +
+  `systemctl restart <project>.service` (or `--user` equivalent for rootless Quadlet units) — plain
+  steps in the workflow, not a script maintained separately on the box.
+- Build (compiling/pushing the image to GHCR) can still happen on `ubuntu-latest` as normal — only the
+  final "deploy to this box" job needs `runs-on: self-hosted`, keeping build environment consistent
+  with the AWS workflow and avoiding tying up the home runner with compute it doesn't need to do.
 
 ## 3. Registry: GHCR, as a second/parallel path (not a replacement, yet)
 
@@ -91,11 +95,13 @@ of rollback.
 
 ## 4. Backend deploy shape (werewolf repo)
 
-New `.github/workflows/deploy-homelab.yml`:
-1. Checkout, compute `APP_VERSION` (same logic as `deploy.yml` today).
-2. `docker/login-action` against `ghcr.io`.
-3. Build the existing `Dockerfile` unchanged, tag + push `:${{ github.sha }}` and `:latest`.
-4. Workflow ends there — no SSH/SSM step. The box's own timer (section 2) picks up the new digest.
+New `.github/workflows/deploy-homelab.yml`, two jobs:
+1. **`build`** (`runs-on: ubuntu-latest`): checkout, compute `APP_VERSION` (same logic as `deploy.yml`
+   today), `docker/login-action` against `ghcr.io`, build the existing `Dockerfile` unchanged, tag +
+   push `:${{ github.sha }}` and `:latest`.
+2. **`deploy`** (`runs-on: [self-hosted, home-werwolf]`, `needs: build`): `podman pull
+   ghcr.io/<owner>/werewolf:latest` + `systemctl restart werewolf-api.service` (or `--user` for
+   rootless). Queues until the box is awake if it's asleep at release time.
 
 On the box (one-time setup, reusable pattern for future projects):
 - `postgres.container` and `werewolf-api.container` Quadlet units, both on `homelab.network`.
@@ -110,8 +116,8 @@ Today's S3+CloudFront `deploy.yml` is untouched. New `deploy-homelab.yml`:
 2. **New Dockerfile** (doesn't exist yet — FE is pure static S3 today): `nginx:alpine`, `COPY dist/
    werewolf-frontend/browser` into `/usr/share/nginx/html`, plus a small `nginx.conf` with
    `try_files $uri /index.html` for Angular's client-side routing.
-3. Build + push to `ghcr.io/<owner>/werewolf-frontend:latest`, same as backend — no direct box contact
-   from CI.
+3. Build + push to `ghcr.io/<owner>/werewolf-frontend:latest`, same `build`/`deploy` two-job split as
+   the backend — `deploy` job on `runs-on: [self-hosted, home-werwolf]` does the pull + restart.
 
 On the box: a `werewolf-frontend.container` Quadlet unit, its own tunnel ingress hostname.
 
@@ -119,5 +125,5 @@ On the box: a `werewolf-frontend.container` Quadlet unit, its own tunnel ingress
 
 Both repos end up with an `aws` workflow and a `homelab` workflow side by side, fully independent.
 Flipping to home-lab-only later is "rename `deploy.yml` to `deploy.yml.bak` (or disable the trigger)" —
-no rewrite of the home-lab path needed, and the Quadlet + tunnel-ingress + pull-timer pattern
+no rewrite of the home-lab path needed, and the Quadlet + tunnel-ingress + self-hosted-runner pattern
 established here is what future projects copy, not something werewolf-specific.
